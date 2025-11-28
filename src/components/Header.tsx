@@ -22,6 +22,7 @@ export default function Header() {
 
   const phone = settings?.phone || '1-800-906-8960';
   const legalBanner = settings?.legalBanner || 'American Mortgage services are not available in NY, NV, NJ, UT, VT.';
+  const logoHeight = settings?.logoHeight || 40;
 
   return (
     <>
@@ -38,11 +39,11 @@ export default function Header() {
             <Link href="/" className="flex-shrink-0">
               {settings?.logo ? (
                 <Image 
-                  src={urlFor(settings.logo).width(200).url()} 
+                  src={urlFor(settings.logo).height(logoHeight * 2).url()} 
                   alt={settings?.siteName || 'American Mortgage'} 
-                  width={200} 
-                  height={50}
-                  className="h-10 w-auto"
+                  width={logoHeight * 5}
+                  height={logoHeight}
+                  style={{ height: `${logoHeight}px`, width: 'auto' }}
                 />
               ) : (
                 <div className="text-2xl font-bold text-navy">
