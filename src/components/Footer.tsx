@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { client } from '@/lib/sanity';
+import Image from 'next/image';
+import { client, urlFor } from '@/lib/sanity';
 
 async function getSiteSettings() {
   return await client.fetch(`*[_type == "siteSettings"][0]`);
@@ -58,9 +59,19 @@ export default async function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
           {/* Logo Column */}
           <div className="col-span-2 md:col-span-1">
-            <div className="text-xl font-bold text-white mb-4">
-              AMERICAN<span className="text-red"> MORTGAGE</span>
-            </div>
+            {settings?.logoWhite ? (
+              <Image 
+                src={urlFor(settings.logoWhite).width(180).url()} 
+                alt={settings?.siteName || 'American Mortgage'} 
+                width={180} 
+                height={45}
+                className="h-10 w-auto mb-4"
+              />
+            ) : (
+              <div className="text-xl font-bold text-white mb-4">
+                AMERICAN<span className="text-red"> MORTGAGE</span>
+              </div>
+            )}
             <p className="text-sm text-grey-400">
               Making homeownership possible for everyone.
             </p>
