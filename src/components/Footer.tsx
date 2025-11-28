@@ -1,6 +1,16 @@
 import Link from 'next/link';
+import { client } from '@/lib/sanity';
 
-export default function Footer() {
+async function getSiteSettings() {
+  return await client.fetch(`*[_type == "siteSettings"][0]`);
+}
+
+export default async function Footer() {
+  const settings = await getSiteSettings();
+  
+  const phone = settings?.phone || '1-800-906-8960';
+  const email = settings?.email || 'hi@americanmortgage.com';
+
   const footerColumns = [
     {
       title: 'Customer Resources',
@@ -18,13 +28,13 @@ export default function Footer() {
         { label: 'About', url: '/about' },
         { label: 'Careers', url: '/careers' },
         { label: 'Applicant Resources', url: '/resources' },
-        { label: '1-800-906-8960', url: 'tel:1-800-906-8960' },
+        { label: phone, url: `tel:${phone.replace(/[^0-9]/g, '')}` },
       ],
     },
     {
       title: 'Support',
       links: [
-        { label: 'hi@americanmortgage.com', url: 'mailto:hi@americanmortgage.com' },
+        { label: email, url: `mailto:${email}` },
         { label: 'Help', url: '/help' },
         { label: 'Contact', url: '/contact' },
         { label: 'Accessibility', url: '/accessibility' },
