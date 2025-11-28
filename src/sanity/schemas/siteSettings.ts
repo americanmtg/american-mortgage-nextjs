@@ -16,9 +16,24 @@ export default defineType({
       type: 'image',
     }),
     defineField({
+      name: 'logoHeight',
+      title: 'Logo Height (px)',
+      type: 'number',
+      description: 'Height in pixels (default: 40)',
+      initialValue: 40,
+    }),
+    defineField({
       name: 'logoWhite',
       title: 'Logo (White)',
       type: 'image',
+      description: 'White version for dark backgrounds',
+    }),
+    defineField({
+      name: 'logoWhiteHeight',
+      title: 'Footer Logo Height (px)',
+      type: 'number',
+      description: 'Height in pixels (default: 40)',
+      initialValue: 40,
     }),
     defineField({
       name: 'phone',
