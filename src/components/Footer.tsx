@@ -11,6 +11,7 @@ export default async function Footer() {
   
   const phone = settings?.phone || '1-800-906-8960';
   const email = settings?.email || 'hi@americanmortgage.com';
+  const logoWhiteHeight = settings?.logoWhiteHeight || 40;
 
   const footerColumns = [
     {
@@ -61,11 +62,12 @@ export default async function Footer() {
           <div className="col-span-2 md:col-span-1">
             {settings?.logoWhite ? (
               <Image 
-                src={urlFor(settings.logoWhite).width(180).url()} 
+                src={urlFor(settings.logoWhite).height(logoWhiteHeight * 2).url()} 
                 alt={settings?.siteName || 'American Mortgage'} 
-                width={180} 
-                height={45}
-                className="h-10 w-auto mb-4"
+                width={logoWhiteHeight * 5}
+                height={logoWhiteHeight}
+                style={{ height: `${logoWhiteHeight}px`, width: 'auto' }}
+                className="mb-4"
               />
             ) : (
               <div className="text-xl font-bold text-white mb-4">
