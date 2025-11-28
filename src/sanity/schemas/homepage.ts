@@ -74,7 +74,7 @@ export default defineType({
           fields: [
             { name: 'title', type: 'string', title: 'Title' },
             { name: 'description', type: 'string', title: 'Description' },
-            { name: 'icon', type: 'string', title: 'Icon (emoji)' },
+            { name: 'icon', type: 'string', title: 'Icon' },
             { name: 'url', type: 'string', title: 'URL' },
           ],
         },
@@ -86,4 +86,16 @@ export default defineType({
       type: 'object',
       fields: [
         { name: 'title', type: 'string', title: 'Title' },
-        { name: 'description', type: 'text', title: 'Descripti
+        { name: 'description', type: 'text', title: 'Description' },
+        { name: 'buttonText', type: 'string', title: 'Button Text' },
+        { name: 'buttonUrl', type: 'string', title: 'Button URL' },
+        { name: 'image', type: 'image', title: 'Agent Photo' },
+      ],
+    }),
+  ],
+  preview: {
+    prepare() {
+      return { title: 'Homepage' };
+    },
+  },
+});
