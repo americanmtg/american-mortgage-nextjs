@@ -1,10 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { client } from '@/lib/sanity';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    client.fetch(`*[_type == "siteSettings"][0]`).then(setSettings);
+  }, []);
 
   const navItems = [
     { label: 'About', url: '/about' },
@@ -13,11 +19,14 @@ export default function Header() {
     { label: 'Reviews', url: '/reviews' },
   ];
 
+  const phone = settings?.phone || '1-800-906-8960';
+  const legalBanner = settings?.legalBanner || 'American Mortgage services are not available in NY, NV, NJ, UT, VT.';
+
   return (
     <>
       {/* Top Banner */}
       <div className="bg-navy text-white text-center py-2 text-sm">
-        American Mortgage services are not available in NY, NV, NJ, UT, VT.
+        {legalBanner}
       </div>
       
       {/* Main Header */}
@@ -46,8 +55,8 @@ export default function Header() {
 
             {/* CTA Buttons */}
             <div className="hidden md:flex items-center gap-4">
-              <a href="tel:1-800-906-8960" className="text-navy font-semibold">
-                1-800-906-8960
+              <a href={`tel:${phone.replace(/[^0-9]/g, '')}`} className="text-navy font-semibold">
+                {phone}
               </a>
               <Link href="/apply" className="btn btn-primary">
                 Apply
@@ -88,8 +97,8 @@ export default function Header() {
                 </Link>
               ))}
               <div className="pt-4 border-t border-grey-200 space-y-3">
-                <a href="tel:1-800-906-8960" className="block text-navy font-semibold">
-                  1-800-906-8960
+                <a href={`tel:${phone.replace(/[^0-9]/g, '')}`} className="block text-navy font-semibold">
+                  {phone}
                 </a>
                 <Link href="/apply" className="btn btn-primary w-full">
                   Apply Now
