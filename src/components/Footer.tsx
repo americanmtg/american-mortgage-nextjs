@@ -1,10 +1,27 @@
-export const revalidate = 0;
 import Link from 'next/link';
 import Image from 'next/image';
-import { client, urlFor } from '@/lib/sanity';
+import { createClient } from 'next-sanity';
+import imageUrlBuilder from '@sanity/image-url';
+
+const client = createClient({
+  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
+  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
+  apiVersion: '2024-01-01',
+  useCdn: false,
+});
+
+const builder = imageUrlBuilder(client);
+function urlFor(source: any) {
+  return builder.image(source);
+}
 
 async function getSiteSettings() {
-  return await client.fetch(`*[_type == "siteSettings"][0]`);
+  const settings = await client.fetch(
+    `*[_type == "siteSettings"][0]`,
+    {},
+    { cache: 'no-store' }
+  );
+  return settings;
 }
 
 export default async function Footer() {
