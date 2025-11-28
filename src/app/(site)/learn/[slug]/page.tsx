@@ -1,4 +1,23 @@
 import Link from 'next/link';
+import { client } from '@/lib/sanity';
+import { PortableText } from '@portabletext/react';
+import { notFound } from 'next/navigation';
+
+async function getBlogPost(slug: string) {
+  return await client.fetch(`
+    *[_type == "blogPost" && slug.current == $slug][0] {
+      _id,
+      title,
+      excerpt,
+      keyTakeaways,
+      content,
+      readTime,
+      publishedAt,
+      "author": author->{name, title, bio, nmls},
+      "categories": categories[]->title
+    }
+  `, { slug });
+}
 
 function StickySidebar() {
   return (
@@ -27,18 +46,32 @@ function KeyTakeaways({ text }: { text: string }) {
   );
 }
 
-export default function BlogPostPage({ params }: { params: { slug: string } }) {
-  const post = {
-    title: '2025 FHA Home Loan Eligibility',
-    publishedAt: '2025-03-12',
-    author: {
-      name: 'Shiloh Davis',
-      title: 'Loan Officer Development (NMLS #2056630)',
-      bio: 'Shiloh has extensive experience with FHA and conventional loans from his time as a senior loan officer.',
-    },
-    reviewer: 'Tim Jones, Senior Risk Advisor',
-    keyTakeaways: 'FHA loan qualifications are pretty flexible, but for the best chance at approval, you should aim for a credit score of 620+, a DTI ratio of 43% or lower, and enough upfront funds to cover a 3.5% down payment.',
-  };
+const portableTextComponents = {
+  block: {
+    h2: ({ children }: any) => <h2 className="text-2xl font-bold text-navy mt-10 mb-4">{children}</h2>,
+    h3: ({ children }: any) => <h3 className="text-xl font-bold text-navy mt-8 mb-3">{children}</h3>,
+    normal: ({ children }: any) => <p className="mb-4 text-grey-700">{children}</p>,
+    blockquote: ({ children }: any) => <blockquote className="border-l-4 border-red pl-4 italic text-grey-600 my-6">{children}</blockquote>,
+  },
+  marks: {
+    strong: ({ children }: any) => <strong className="font-semibold text-grey-800">{children}</strong>,
+    em: ({ children }: any) => <em>{children}</em>,
+    link: ({ children, value }: any) => (
+      <a href={value.href} className="text-navy underline hover:text-red">{children}</a>
+    ),
+  },
+  list: {
+    bullet: ({ children }: any) => <ul className="list-disc list-inside mb-4 space-y-2">{children}</ul>,
+    number: ({ children }: any) => <ol className="list-decimal list-inside mb-4 space-y-2">{children}</ol>,
+  },
+};
+
+export default async function BlogPostPage({ params }: { params: { slug: string } }) {
+  const post = await getBlogPost(params.slug);
+
+  if (!post) {
+    notFound();
+  }
 
   return (
     <>
@@ -49,9 +82,13 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
               {post.title}
             </h1>
             <div className="flex flex-wrap items-center gap-4 text-grey-300">
-              <span>Written by {post.author.name}</span>
-              <span>•</span>
-              <span>Reviewed by {post.reviewer}</span>
+              {post.author && <span>Written by {post.author.name}</span>}
+              {post.categories?.length > 0 && (
+                <>
+                  <span>•</span>
+                  <span>{post.categories.join(', ')}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -63,9 +100,17 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
             <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full font-medium">
               ✓ Expert Reviewed
             </span>
-            <span className="text-grey-500">
-              Updated {new Date(post.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            </span>
+            {post.publishedAt && (
+              <span className="text-grey-500">
+                Published {new Date(post.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </span>
+            )}
+            {post.readTime && (
+              <>
+                <span className="text-grey-500">•</span>
+                <span className="text-grey-500">{post.readTime}</span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -74,79 +119,30 @@ export default function BlogPostPage({ params }: { params: { slug: string } }) {
         <div className="container-custom">
           <div className="grid lg:grid-cols-3 gap-12">
             <div className="lg:col-span-2">
-              <KeyTakeaways text={post.keyTakeaways} />
+              {post.keyTakeaways && <KeyTakeaways text={post.keyTakeaways} />}
 
               <div className="prose-custom">
-                <p>
-                  Thinking about buying your first home in 2025? An FHA loan could be a perfect fit! Known for their flexible requirements, low down payments, and low interest rates, FHA loans are a go-to option for first-time buyers.
-                </p>
-
-                <h2>2025 FHA Loan Requirements</h2>
-                <p>
-                  To qualify for an FHA loan, you will need to meet a few key requirements. Here is what FHA lenders typically look for:
-                </p>
-
-                <table>
-                  <thead>
-                    <tr>
-                      <th colSpan={2}>2025 FHA Loan Requirements</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="font-semibold">Credit Score</td>
-                      <td>500 (with 10% down) or 580+ (with 3.5% down)</td>
-                    </tr>
-                    <tr>
-                      <td className="font-semibold">Down Payment</td>
-                      <td>At least 3.5% of the purchase price</td>
-                    </tr>
-                    <tr>
-                      <td className="font-semibold">DTI Ratio</td>
-                      <td>Typically no more than 43%</td>
-                    </tr>
-                    <tr>
-                      <td className="font-semibold">Loan Limits</td>
-                      <td>$524,225 in most areas (2025)</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <h2>Credit Score and Down Payment</h2>
-                <p>
-                  FHA loan credit score minimums and down payments are linked. You need a minimum of 500 to qualify with a 10% down payment or a 580+ credit score with a 3.5% down payment.
-                </p>
-
-                <h2>How to Qualify For an FHA Loan</h2>
-                <p>
-                  While the U.S. Federal Housing Administration insures FHA loans, the US government does not actually issue them. Instead, you will apply for your loan through an FHA-approved lender.
-                </p>
-
-                <div className="bg-navy text-white rounded-2xl p-8 my-12">
-                  <h3 className="text-2xl font-bold mb-4 text-white">
-                    Want to check your eligibility for an FHA loan?
-                  </h3>
-                  <p className="text-grey-300 mb-6">
-                    Get in touch with an American Mortgage Loan Expert.
-                  </p>
-                  <Link href="/apply" className="btn btn-primary">
-                    Get Started
-                  </Link>
-                </div>
-
-                <h2>Is an FHA loan right for you?</h2>
-                <p>
-                  If you are having difficulty applying for a conventional loan or you want to save the money you would use on a higher down payment, then an FHA loan could be a good choice.
-                </p>
+                {post.content ? (
+                  <PortableText value={post.content} components={portableTextComponents} />
+                ) : (
+                  <p className="text-grey-500">No content yet.</p>
+                )}
               </div>
 
-              <div className="border-t border-grey-200 mt-12 pt-12">
-                <div className="bg-grey-50 rounded-2xl p-6">
-                  <div className="font-bold text-navy text-lg">By: {post.author.name}</div>
-                  <div className="text-grey-500 text-sm mb-3">{post.author.title}</div>
-                  <p className="text-grey-600 text-sm">{post.author.bio}</p>
+              {post.author && (
+                <div className="border-t border-grey-200 mt-12 pt-12">
+                  <div className="bg-grey-50 rounded-2xl p-6">
+                    <div className="font-bold text-navy text-lg">By: {post.author.name}</div>
+                    {post.author.title && (
+                      <div className="text-grey-500 text-sm mb-3">
+                        {post.author.title}
+                        {post.author.nmls && ` (NMLS ${post.author.nmls})`}
+                      </div>
+                    )}
+                    {post.author.bio && <p className="text-grey-600 text-sm">{post.author.bio}</p>}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="lg:col-span-1">
