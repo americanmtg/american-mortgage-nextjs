@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
-import { client } from '@/lib/sanity';
+import { client, urlFor } from '@/lib/sanity';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -35,9 +36,19 @@ export default function Header() {
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <Link href="/" className="flex-shrink-0">
-              <div className="text-2xl font-bold text-navy">
-                AMERICAN<span className="text-red"> MORTGAGE</span>
-              </div>
+              {settings?.logo ? (
+                <Image 
+                  src={urlFor(settings.logo).width(200).url()} 
+                  alt={settings?.siteName || 'American Mortgage'} 
+                  width={200} 
+                  height={50}
+                  className="h-10 w-auto"
+                />
+              ) : (
+                <div className="text-2xl font-bold text-navy">
+                  AMERICAN<span className="text-red"> MORTGAGE</span>
+                </div>
+              )}
             </Link>
 
             {/* Desktop Navigation */}
