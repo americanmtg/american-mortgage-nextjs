@@ -99,3 +99,31 @@
 .prose-custom strong {
   @apply font-semibold text-grey-800;
 }
+
+/* Shine button effect */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease-out;
+}
+
+.btn-shine:hover {
+  transform: scale(1.05);
+}
+
+.btn-shine::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%);
+  transform: skew(-20deg);
+}
+
+.btn-shine:hover::after {
+  left: 150%;
+  transition: left 0.5s ease-out;
+}

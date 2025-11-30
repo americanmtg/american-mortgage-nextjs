@@ -1,37 +1,28 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { createClient } from 'next-sanity';
-import imageUrlBuilder from '@sanity/image-url';
-
-const client = createClient({
-  projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
-  apiVersion: '2024-01-01',
-  useCdn: false,
-});
-
-const builder = imageUrlBuilder(client);
-function urlFor(source: any) {
-  return builder.image(source);
-}
-
-async function getSiteSettings() {
-  const settings = await client.fetch(
-    `*[_type == "siteSettings"][0]`,
-    {},
-    { cache: 'no-store' }
-  );
-  return settings;
-}
+import { getSiteSettings, getMediaUrl, getFooter } from '@/lib/data';
 
 export default async function Footer() {
-  const settings = await getSiteSettings();
-  
+  const [settings, footerData] = await Promise.all([
+    getSiteSettings(),
+    getFooter(),
+  ]);
+
   const phone = settings?.phone || '1-800-906-8960';
   const email = settings?.email || 'hi@americanmortgage.com';
-  const logoWhiteHeight = settings?.logoWhiteHeight || 40;
+  const logoWhiteUrl = getMediaUrl(settings?.logoWhite);
+  const logoWhiteHeight = settings?.logoWhiteHeight || 60;
 
-  const footerColumns = [
+  // Use CMS footer data with fallback to defaults
+  const tagline = footerData?.tagline || 'Making homeownership possible for everyone.';
+  const copyrightText = footerData?.copyrightText || 'American Mortgage is a DBA of Mortgage Research Center, LLC. Copyright {{year}} Mortgage Research Center, LLC. All Rights Reserved.';
+  const nmlsInfo = footerData?.nmlsInfo || 'NMLS ID #1907 (www.nmlsconsumeraccess.org). Equal Housing Opportunity.';
+  const ctaText = footerData?.ctaText || 'See what home loan is right for you';
+  const ctaButtonText = footerData?.ctaButtonText || 'Start Here';
+  const ctaButtonUrl = footerData?.ctaButtonUrl || '/apply';
+
+  // Use CMS columns if available, otherwise use defaults
+  const footerColumns = footerData?.columns && footerData.columns.length > 0 ? footerData.columns : [
     {
       title: 'Customer Resources',
       links: [
@@ -78,37 +69,36 @@ export default async function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
           {/* Logo Column */}
           <div className="col-span-2 md:col-span-1">
-            {settings?.logoWhite ? (
-              <Image 
-                src={urlFor(settings.logoWhite).height(logoWhiteHeight * 2).url()} 
-                alt={settings?.siteName || 'American Mortgage'} 
-                width={logoWhiteHeight * 5}
-                height={logoWhiteHeight}
-                style={{ height: `${logoWhiteHeight}px`, width: 'auto' }}
-                className="mb-4"
-              />
-            ) : (
-              <div className="text-xl font-bold text-white mb-4">
-                AMERICAN<span className="text-red"> MORTGAGE</span>
-              </div>
-            )}
+            <div style={{ minHeight: `${logoWhiteHeight}px` }} className="mb-4">
+              {logoWhiteUrl && (
+                <Image
+                  src={logoWhiteUrl}
+                  alt="American Mortgage"
+                  width={Math.round(logoWhiteHeight * 3.33)}
+                  height={logoWhiteHeight}
+                  style={{ height: `${logoWhiteHeight}px`, width: 'auto' }}
+                  unoptimized
+                />
+              )}
+            </div>
             <p className="text-sm text-grey-400">
-              Making homeownership possible for everyone.
+              {tagline}
             </p>
           </div>
 
           {/* Link Columns */}
-          {footerColumns.map((column) => (
+          {footerColumns.map((column: any) => (
             <div key={column.title}>
               <h4 className="text-white font-semibold mb-4 text-sm uppercase tracking-wide">
                 {column.title}
               </h4>
               <ul className="space-y-2">
-                {column.links.map((link) => (
+                {column.links?.map((link: any) => (
                   <li key={link.label}>
-                    <Link 
+                    <Link
                       href={link.url}
                       className="text-sm hover:text-white transition-colors"
+                      {...(link.openInNewTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                     >
                       {link.label}
                     </Link>
@@ -122,11 +112,10 @@ export default async function Footer() {
         {/* Legal Text */}
         <div className="text-xs text-grey-500 space-y-4 pt-8 border-t border-grey-700">
           <p>
-            American Mortgage is a DBA of Mortgage Research Center, LLC. 
-            Copyright © {new Date().getFullYear()} Mortgage Research Center, LLC. All Rights Reserved.
+            {copyrightText.replace('{{year}}', new Date().getFullYear().toString())}
           </p>
           <p>
-            NMLS ID #1907 (www.nmlsconsumeraccess.org). Equal Housing Opportunity.
+            {nmlsInfo}
           </p>
         </div>
       </div>
@@ -135,10 +124,10 @@ export default async function Footer() {
       <div className="bg-navy py-4">
         <div className="container-custom flex items-center justify-center gap-4">
           <span className="text-white font-medium hidden sm:inline">
-            See what home loan is right for you
+            {ctaText}
           </span>
-          <Link href="/apply" className="btn btn-primary">
-            Start Here
+          <Link href={ctaButtonUrl} className="btn btn-primary">
+            {ctaButtonText}
           </Link>
         </div>
       </div>

@@ -1,296 +1,218 @@
 import Link from 'next/link';
-import { client } from '@/lib/sanity';
-
-async function getHomepage() {
-  return await client.fetch(`*[_type == "homepage"][0]`);
-}
-
-async function getSiteSettings() {
-  return await client.fetch(`*[_type == "siteSettings"][0]`);
-}
-
-async function getRecentPosts() {
-  return await client.fetch(`
-    *[_type == "blogPost"] | order(publishedAt desc)[0...3] {
-      _id,
-      title,
-      "slug": slug.current,
-      excerpt,
-      readTime
-    }
-  `);
-}
+import { getRecentBlogPosts, getFeaturedLoans, getMediaUrl } from '@/lib/data';
+import HeroSection from '@/components/HeroSection';
 
 export default async function Home() {
-  const homepage = await getHomepage();
-  const settings = await getSiteSettings();
-  const recentPosts = await getRecentPosts();
+  const [recentPosts, featuredLoans] = await Promise.all([
+    getRecentBlogPosts(3),
+    getFeaturedLoans(),
+  ]);
+
+  // Default loans for fallback if CMS is empty
+  const defaultLoans = [
+    {
+      title: 'Conventional Loans',
+      description: 'Traditional financing with competitive rates and flexible terms for qualified buyers.',
+      features: [
+        { text: '3% Down Available' },
+        { text: 'Higher Lending Limits' },
+        { text: 'Ideal for Good Credit' },
+      ],
+      showDPA: true,
+      linkUrl: '/apply',
+      linkText: 'Start Your Conventional',
+    },
+    {
+      title: 'FHA Loans',
+      description: 'Government-backed loans with lower requirements for first-time homebuyers.',
+      features: [
+        { text: '3.5% Down Payment' },
+        { text: 'Lower Credit Requirements' },
+        { text: 'Flexible Debt-to-Income' },
+      ],
+      showDPA: true,
+      linkUrl: '/apply',
+      linkText: 'Start Your FHA',
+    },
+    {
+      title: 'Refinance',
+      description: 'Lower your rate, reduce your term, or access your home equity.',
+      features: [
+        { text: 'Lock in Lower Rates' },
+        { text: 'Access Home Equity' },
+        { text: 'Streamlined Process' },
+      ],
+      showDPA: false,
+      linkUrl: '/apply',
+      linkText: 'Start Your Refinance',
+    },
+  ];
+
+  const loans = featuredLoans.length > 0 ? featuredLoans : defaultLoans;
 
   return (
     <>
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-grey-50 to-white overflow-hidden">
-        <div className="container-custom py-16 md:py-24">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <span className="badge mb-4">
-                {homepage?.hero?.badge || "America's #1 Rated Lender"}
-              </span>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-navy mb-6">
-                {homepage?.hero?.title || 'Your Path To'}{' '}
-                <span className="text-red">{homepage?.hero?.titleEmphasis || 'Homeownership'}</span>
-              </h1>
-              <p className="text-lg text-grey-600 mb-8">
-                {homepage?.hero?.subtext || 'Low rates. Fast approvals. Expert guidance every step of the way.'}
-              </p>
-              <div className="flex flex-wrap gap-4 mb-8">
-                <Link href={homepage?.hero?.buttonUrl || '/apply'} className="btn btn-primary text-lg px-8 py-4">
-                  {homepage?.hero?.buttonText || 'Get Pre-Approved'}
-                </Link>
-                <Link href="/tools/calculator" className="btn btn-secondary text-lg px-8 py-4">
-                  Calculate Payment
-                </Link>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex -space-x-2">
-                  {[1,2,3,4].map((i) => (
-                    <div key={i} className="w-10 h-10 rounded-full bg-grey-300 border-2 border-white" />
-                  ))}
-                </div>
-                <div>
-                  <div className="text-navy font-bold">98%</div>
-                  <div className="text-sm text-grey-500">Would Recommend</div>
-                </div>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="w-full h-80 bg-grey-200 rounded-2xl flex items-center justify-center text-grey-400">
-                Hero Image
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Bar */}
-      <section className="bg-navy py-8">
-        <div className="container-custom">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {(homepage?.stats && homepage.stats.length > 0) ? (
-              homepage.stats.map((stat: any, index: number) => (
-                <div key={index}>
-                  <div className="text-3xl md:text-4xl font-bold text-white mb-1">
-                    {stat.number}
-                  </div>
-                  <div className="text-grey-300 text-sm">{stat.label}</div>
-                </div>
-              ))
-            ) : (
-              <>
-                <div>
-                  <div className="text-3xl md:text-4xl font-bold text-white mb-1">$10B+</div>
-                  <div className="text-grey-300 text-sm">Loans Funded</div>
-                </div>
-                <div>
-                  <div className="text-3xl md:text-4xl font-bold text-white mb-1">50K+</div>
-                  <div className="text-grey-300 text-sm">Happy Families</div>
-                </div>
-                <div>
-                  <div className="text-3xl md:text-4xl font-bold text-white mb-1">4.9/5</div>
-                  <div className="text-grey-300 text-sm">Customer Rating</div>
-                </div>
-                <div>
-                  <div className="text-3xl md:text-4xl font-bold text-white mb-1">21</div>
-                  <div className="text-grey-300 text-sm">Years Experience</div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </section>
+      <HeroSection />
 
       {/* Featured Loans */}
       <section className="section-padding bg-white">
         <div className="container-custom">
           <div className="text-center mb-12">
-            <span className="badge mb-4">Loan Options</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-navy">
-              Find Your Perfect <span className="text-red">Home Loan</span>
+            <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a1a] mb-2">
+              Featured Loans
             </h2>
+            <p className="text-[#666] text-base">
+              From first home to refinance, we&apos;re here for you.
+            </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
-            {(homepage?.featuredLoans && homepage.featuredLoans.length > 0) ? (
-              homepage.featuredLoans.map((loan: any, index: number) => (
-                <div key={index} className="card p-6 hover:shadow-xl transition-shadow">
-                  {loan.showDPA && (
-                    <span className="inline-block px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full mb-4">
-                      DPA Available
-                    </span>
-                  )}
-                  <h3 className="text-xl font-bold text-navy mb-3">{loan.title}</h3>
-                  <p className="text-grey-600 mb-4">{loan.description}</p>
-                  {loan.features && (
-                    <ul className="space-y-2 mb-6">
-                      {loan.features.map((feature: string, i: number) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-grey-700">
-                          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <Link href={loan.buttonUrl || '/loans'} className="btn btn-secondary w-full">
-                    {loan.buttonText || 'Learn More'}
-                  </Link>
-                </div>
-              ))
-            ) : (
-              <>
-                {[
-                  { title: 'FHA Loans', description: 'Low down payment options for first-time buyers.', features: ['3.5% Down Payment', 'Flexible Credit', 'Lower Rates'], showDPA: true },
-                  { title: 'Conventional Loans', description: 'Traditional financing with competitive rates.', features: ['3% Down Available', 'No PMI with 20% Down', 'Various Terms'], showDPA: false },
-                  { title: 'VA Loans', description: 'Exclusive benefits for veterans.', features: ['0% Down Payment', 'No PMI Required', 'Competitive Rates'], showDPA: false },
-                ].map((loan, index) => (
-                  <div key={index} className="card p-6 hover:shadow-xl transition-shadow">
+            {loans.map((loan: any, index: number) => {
+              const imageUrl = getMediaUrl(loan.image);
+              return (
+                <div key={loan.id || index} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+                  <div className="h-48 bg-gradient-to-br from-[#181F53] to-[#2a3270] flex items-center justify-center relative overflow-hidden">
+                    {imageUrl ? (
+                      <img src={imageUrl} alt={loan.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-white/30 text-sm">Loan Image</div>
+                    )}
+                  </div>
+                  <div className="p-6">
                     {loan.showDPA && (
-                      <span className="inline-block px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full mb-4">
-                        DPA Available
+                      <span className="inline-block px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full mb-3">
+                        Down Payment Assistance Available
                       </span>
                     )}
-                    <h3 className="text-xl font-bold text-navy mb-3">{loan.title}</h3>
-                    <p className="text-grey-600 mb-4">{loan.description}</p>
+                    <h3 className="text-xl font-bold text-[#1a1a1a] mb-2">{loan.title}</h3>
+                    <p className="text-[#666] text-sm mb-4 whitespace-pre-line">{loan.description}</p>
                     <ul className="space-y-2 mb-6">
-                      {loan.features.map((feature, i) => (
-                        <li key={i} className="flex items-center gap-2 text-sm text-grey-700">
-                          <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {loan.features?.map((feature: any, i: number) => (
+                        <li key={i} className="flex items-center gap-2 text-sm text-[#1a1a1a]">
+                          <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
-                          {feature}
+                          {feature.text || feature}
                         </li>
                       ))}
                     </ul>
-                    <Link href="/loans" className="btn btn-secondary w-full">Learn More</Link>
+                    <Link
+                      href={loan.linkUrl || '/apply'}
+                      className="block w-full text-center bg-[#181F53] text-white font-semibold py-3 px-6 rounded-lg hover:bg-[#232b5e] transition-colors"
+                    >
+                      {loan.linkText || `Start Your ${loan.title.replace(' Loans', '')}`}
+                    </Link>
                   </div>
-                ))}
-              </>
-            )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* DPA Section */}
-      <section className="section-padding bg-grey-50">
+      {/* Down Payment Assistance */}
+      <section className="section-padding bg-[#f8f8f8]">
         <div className="container-custom">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-navy mb-6">
-                {homepage?.dpa?.title || 'Down Payment'} <span className="text-red">{homepage?.dpa?.titleEmphasis || 'Assistance'}</span>
+              <span className="inline-block px-4 py-1.5 bg-[#181F53]/10 text-[#181F53] text-sm font-semibold rounded-full mb-4">
+                DPA Programs
+              </span>
+              <h2 className="text-3xl md:text-4xl font-bold text-[#1a1a1a] mb-4">
+                Down Payment Assistance
               </h2>
-              <p className="text-lg text-grey-600 mb-6">
-                {homepage?.dpa?.description || "Don't let a down payment hold you back. We offer programs to help you get into your home sooner."}
+              <p className="text-lg text-[#666] mb-6">
+                Don&apos;t let a down payment hold you back. We offer programs to help you get into your home sooner with forgivable assistance options.
               </p>
               <ul className="space-y-4 mb-8">
-                {(homepage?.dpa?.features && homepage.dpa.features.length > 0) ? (
-                  homepage.dpa.features.map((feature: string, index: number) => (
-                    <li key={index} className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-red/10 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <span className="text-grey-700">{feature}</span>
-                    </li>
-                  ))
-                ) : (
-                  ['Up to $10,000 in assistance', 'No repayment required', 'Works with FHA and Conventional', 'Quick approval'].map((feature, index) => (
-                    <li key={index} className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-red/10 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <span className="text-grey-700">{feature}</span>
-                    </li>
-                  ))
-                )}
+                {['Up to $10,000 in assistance', 'Forgivable programs available', '0% down options', 'Works with FHA and Conventional', 'Quick eligibility check'].map((feature, index) => (
+                  <li key={index} className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-full bg-[#d93c37]/10 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-[#d93c37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-[#1a1a1a]">{feature}</span>
+                  </li>
+                ))}
               </ul>
-              <Link href={homepage?.dpa?.buttonUrl || '/dpa'} className="btn btn-primary">
-                {homepage?.dpa?.buttonText || 'Check Eligibility'}
+              <Link
+                href="/dpa"
+                className="inline-block bg-[#d93c37] text-white font-semibold py-3 px-8 rounded-lg hover:bg-[#b8302c] transition-colors"
+              >
+                Check Eligibility
               </Link>
             </div>
-            <div className="w-full h-80 bg-grey-200 rounded-2xl flex items-center justify-center text-grey-400">
-              DPA Image
+            <div className="bg-gradient-to-br from-[#181F53] to-[#2a3270] rounded-2xl h-80 flex items-center justify-center">
+              <div className="text-white/30 text-sm">DPA Image</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Tools Section */}
+      {/* Tools & Calculators */}
       <section className="section-padding bg-white">
         <div className="container-custom">
           <div className="text-center mb-12">
-            <span className="badge mb-4">Free Tools</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-navy">
-              Helpful <span className="text-red">Calculators</span>
+            <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a1a] mb-2">
+              Tools & Calculators
             </h2>
+            <p className="text-[#666] text-base">
+              Free resources to help you plan your home purchase
+            </p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {(homepage?.tools && homepage.tools.length > 0) ? (
-              homepage.tools.map((tool: any, index: number) => (
-                <Link 
-                  key={index}
-                  href={tool.url || '/tools'}
-                  className="flex items-center gap-4 p-6 bg-grey-50 rounded-xl hover:bg-grey-100 transition-colors"
-                >
-                  <div className="text-4xl">{tool.icon || '🏠'}</div>
-                  <div>
-                    <h3 className="font-semibold text-navy">{tool.title}</h3>
-                    <p className="text-sm text-grey-500">{tool.description}</p>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              [
-                { title: 'Mortgage Calculator', description: 'Estimate your monthly payment', icon: '🏠' },
-                { title: 'Affordability Calculator', description: 'See how much you can afford', icon: '💰' },
-                { title: 'Refinance Calculator', description: 'Calculate your savings', icon: '📊' },
-              ].map((tool, index) => (
-                <Link 
-                  key={index}
-                  href="/tools"
-                  className="flex items-center gap-4 p-6 bg-grey-50 rounded-xl hover:bg-grey-100 transition-colors"
-                >
-                  <div className="text-4xl">{tool.icon}</div>
-                  <div>
-                    <h3 className="font-semibold text-navy">{tool.title}</h3>
-                    <p className="text-sm text-grey-500">{tool.description}</p>
-                  </div>
-                </Link>
-              ))
-            )}
+            {[
+              { title: 'Mortgage Calculator', description: 'Estimate your monthly payment', icon: '🏠', href: '/calculator' },
+              { title: 'Affordability Calculator', description: 'See how much home you can afford', icon: '💰', href: '/calculator' },
+              { title: 'Refinance Calculator', description: 'Calculate your potential savings', icon: '📊', href: '/calculator' },
+            ].map((tool, index) => (
+              <Link
+                key={index}
+                href={tool.href}
+                className="flex items-center gap-4 p-6 bg-[#f8f8f8] rounded-xl hover:bg-[#f0f0f0] transition-colors group"
+              >
+                <div className="w-14 h-14 bg-[#181F53]/10 rounded-xl flex items-center justify-center text-2xl group-hover:bg-[#181F53]/20 transition-colors">
+                  {tool.icon}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#1a1a1a] group-hover:text-[#181F53] transition-colors">{tool.title}</h3>
+                  <p className="text-sm text-[#666]">{tool.description}</p>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Agent CTA */}
-      <section className="section-padding bg-navy">
+      <section className="section-padding bg-[#181F53]">
         <div className="container-custom">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-                {homepage?.agentSection?.title || 'Talk to a Loan Expert Today'}
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                Talk to a Loan Expert Today
               </h2>
-              <p className="text-lg text-grey-300 mb-8">
-                {homepage?.agentSection?.description || "Get personalized guidance from our experienced loan officers. We're here to help you navigate the mortgage process with confidence."}
+              <p className="text-lg text-white/70 mb-8">
+                Get personalized guidance from our experienced loan officers. We&apos;re here to help you navigate the mortgage process with confidence.
               </p>
-              <Link href={homepage?.agentSection?.buttonUrl || '/contact'} className="btn btn-primary">
-                {homepage?.agentSection?.buttonText || 'Schedule a Call'}
-              </Link>
+              <div className="flex flex-wrap gap-4">
+                <Link
+                  href="/contact"
+                  className="inline-block bg-[#d93c37] text-white font-semibold py-3 px-8 rounded-lg hover:bg-[#b8302c] transition-colors"
+                >
+                  Schedule a Call
+                </Link>
+                <a
+                  href="tel:8709264052"
+                  className="inline-block bg-white/10 text-white font-semibold py-3 px-8 rounded-lg hover:bg-white/20 transition-colors"
+                >
+                  Call 870-926-4052
+                </a>
+              </div>
             </div>
             <div className="flex justify-center">
-              <div className="w-64 h-64 bg-grey-700 rounded-full flex items-center justify-center text-grey-500">
+              <div className="w-64 h-64 bg-white/10 rounded-full flex items-center justify-center text-white/30">
                 Agent Photo
               </div>
             </div>
@@ -304,34 +226,40 @@ export default async function Home() {
           <div className="container-custom">
             <div className="flex justify-between items-end mb-12">
               <div>
-                <span className="badge mb-4">Learning Center</span>
-                <h2 className="text-3xl md:text-4xl font-bold text-navy">
-                  Latest <span className="text-red">Articles</span>
+                <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a1a]">
+                  Latest Articles
                 </h2>
+                <p className="text-[#666] mt-2">Tips and guides for homebuyers</p>
               </div>
-              <Link href="/learn" className="btn btn-secondary hidden md:inline-flex">
+              <Link href="/learn" className="text-[#181F53] font-semibold hover:text-[#d93c37] transition-colors hidden md:inline-flex items-center gap-2">
                 View All Articles
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
               </Link>
             </div>
             <div className="grid md:grid-cols-3 gap-8">
               {recentPosts.map((post: any) => (
-                <Link key={post._id} href={`/learn/${post.slug}`} className="card group">
-                  <div className="aspect-video bg-grey-200 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-navy/20 group-hover:bg-navy/30 transition-colors" />
-                  </div>
-                  <div className="p-6">
-                    <span className="text-sm text-grey-500">{post.readTime}</span>
-                    <h3 className="text-lg font-semibold text-navy mt-2 mb-2 group-hover:text-red transition-colors">
-                      {post.title}
-                    </h3>
-                    <p className="text-grey-600 text-sm">{post.excerpt}</p>
+                <Link key={post.id} href={`/learn/${post.slug}`} className="group">
+                  <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+                    <div className="aspect-video bg-gradient-to-br from-[#181F53] to-[#2a3270] relative overflow-hidden">
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-lg font-semibold text-[#1a1a1a] mb-2 group-hover:text-[#181F53] transition-colors">
+                        {post.title}
+                      </h3>
+                      {post.excerpt && (
+                        <p className="text-[#666] text-sm line-clamp-2">{post.excerpt}</p>
+                      )}
+                    </div>
                   </div>
                 </Link>
               ))}
             </div>
             <div className="text-center mt-8 md:hidden">
-              <Link href="/learn" className="btn btn-secondary">
-                View All Articles
+              <Link href="/learn" className="text-[#181F53] font-semibold hover:text-[#d93c37] transition-colors">
+                View All Articles →
               </Link>
             </div>
           </div>

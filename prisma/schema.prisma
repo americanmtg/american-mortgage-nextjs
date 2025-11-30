@@ -1,0 +1,419 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model admin_users {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique @db.VarChar(255)
+  password_hash String    @db.VarChar(255)
+  name          String    @db.VarChar(255)
+  role          String    @default("admin") @db.VarChar(50)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model blog_posts {
+  id                            Int                             @id @default(autoincrement())
+  title                         String                          @db.VarChar
+  slug                          String                          @unique(map: "blog_posts_slug_idx") @db.VarChar
+  excerpt                       String?                         @db.VarChar
+  featured_image_id             Int?
+  content                       Json?
+  published_at                  DateTime?                       @db.Timestamptz(3)
+  author                        String?                         @db.VarChar
+  updated_at                    DateTime                        @default(now()) @db.Timestamptz(3)
+  created_at                    DateTime                        @default(now()) @db.Timestamptz(3)
+  media                         media?                          @relation(fields: [featured_image_id], references: [id], onUpdate: NoAction, map: "blog_posts_featured_image_id_media_id_fk")
+  blog_posts_key_takeaways      blog_posts_key_takeaways[]
+  payload_locked_documents_rels payload_locked_documents_rels[]
+
+  @@index([created_at])
+  @@index([featured_image_id], map: "blog_posts_featured_image_idx")
+  @@index([updated_at])
+}
+
+model blog_posts_key_takeaways {
+  order      Int        @map("_order")
+  parent_id  Int        @map("_parent_id")
+  id         String     @id @db.VarChar
+  takeaway   String     @db.VarChar
+  blog_posts blog_posts @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "blog_posts_key_takeaways_parent_id_fk")
+
+  @@index([order], map: "blog_posts_key_takeaways_order_idx")
+  @@index([parent_id], map: "blog_posts_key_takeaways_parent_id_idx")
+}
+
+model featured_loans {
+  id                      Int                       @id @default(autoincrement())
+  title                   String                    @db.VarChar
+  subtitle                String?                   @db.VarChar
+  description             String?                   @db.VarChar
+  icon                    enum_featured_loans_icon? @default(home)
+  image_id                Int?
+  link_url                String?                   @db.VarChar
+  link_text               String?                   @default("Learn More") @db.VarChar
+  order                   Decimal?                  @default(0) @db.Decimal
+  is_active               Boolean?                  @default(true)
+  updated_at              DateTime                  @default(now()) @db.Timestamptz(3)
+  created_at              DateTime                  @default(now()) @db.Timestamptz(3)
+  media                   media?                    @relation("featured_loans_image_idTomedia", fields: [image_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  featured_loans_features featured_loans_features[]
+}
+
+model featured_loans_features {
+  order          Int            @map("_order")
+  parent_id      Int            @map("_parent_id")
+  id             String         @id @db.VarChar
+  text           String         @db.VarChar
+  featured_loans featured_loans @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "featured_loans_features_parent_id_fk")
+}
+
+model footer {
+  id              Int              @id @default(autoincrement())
+  tagline         String?          @default("Making homeownership possible for everyone.") @db.VarChar
+  copyright_text  String?          @db.VarChar
+  nmls_info       String?          @db.VarChar
+  cta_text        String?          @default("See what home loan is right for you") @db.VarChar
+  cta_button_text String?          @default("Start Here") @db.VarChar
+  cta_button_url  String?          @default("/apply") @db.VarChar
+  updated_at      DateTime?        @db.Timestamptz(3)
+  created_at      DateTime?        @db.Timestamptz(3)
+  footer_columns  footer_columns[]
+}
+
+model footer_columns {
+  order                Int                    @map("_order")
+  parent_id            Int                    @map("_parent_id")
+  id                   String                 @id @db.VarChar
+  title                String                 @db.VarChar
+  footer               footer                 @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "footer_columns_parent_id_fk")
+  footer_columns_links footer_columns_links[]
+}
+
+model footer_columns_links {
+  order           Int            @map("_order")
+  parent_id       String         @map("_parent_id") @db.VarChar
+  id              String         @id @db.VarChar
+  label           String         @db.VarChar
+  url             String         @db.VarChar
+  open_in_new_tab Boolean?       @default(false)
+  footer_columns  footer_columns @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "footer_columns_links_parent_id_fk")
+}
+
+model header_settings {
+  id                             Int       @id @default(autoincrement())
+  background_type                String?   @default("solid") @db.VarChar
+  background_color               String?   @default("#ffffff") @db.VarChar
+  gradient_start_color           String?   @default("#ffffff") @db.VarChar
+  gradient_end_color             String?   @default("#f0f0f0") @db.VarChar
+  gradient_direction             String?   @default("to-right") @db.VarChar
+  pattern_type                   String?   @default("dots") @db.VarChar
+  pattern_color                  String?   @default("#e5e5e5") @db.VarChar
+  pattern_background_color       String?   @default("#ffffff") @db.VarChar
+  pattern_image_id               Int?
+  background_image_id            Int?
+  background_image_overlay       String?   @default("rgba(255,255,255,0.9)") @db.VarChar
+  background_video_id            Int?
+  background_video_url           String?   @db.VarChar
+  background_video_overlay       String?   @default("rgba(255,255,255,0.9)") @db.VarChar
+  header_button_text             String?   @default("Apply") @db.VarChar
+  header_button_url              String?   @default("/apply") @db.VarChar
+  header_button_background_color String?   @default("#d93c37") @db.VarChar
+  header_button_text_color       String?   @default("#ffffff") @db.VarChar
+  updated_at                     DateTime? @default(now()) @db.Timestamptz(6)
+  created_at                     DateTime? @default(now()) @db.Timestamptz(6)
+  media_pattern_image            media?    @relation("header_settings_pattern_image_idTomedia", fields: [pattern_image_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  media_background_image         media?    @relation("header_settings_background_image_idTomedia", fields: [background_image_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+}
+
+model media {
+  id                                               Int                             @id @default(autoincrement())
+  alt                                              String                          @db.VarChar
+  updated_at                                       DateTime                        @default(now()) @db.Timestamptz(3)
+  created_at                                       DateTime                        @default(now()) @db.Timestamptz(3)
+  url                                              String?                         @db.VarChar
+  thumbnail_u_r_l                                  String?                         @db.VarChar
+  filename                                         String?                         @unique(map: "media_filename_idx") @db.VarChar
+  mime_type                                        String?                         @db.VarChar
+  filesize                                         Decimal?                        @db.Decimal
+  width                                            Decimal?                        @db.Decimal
+  height                                           Decimal?                        @db.Decimal
+  focal_x                                          Decimal?                        @db.Decimal
+  focal_y                                          Decimal?                        @db.Decimal
+  label                                            String?                         @db.VarChar
+  blog_posts                                       blog_posts[]
+  featured_loans                                   featured_loans[]                @relation("featured_loans_image_idTomedia")
+  header_settings_pattern_image                    header_settings[]               @relation("header_settings_pattern_image_idTomedia")
+  header_settings_background_image                 header_settings[]               @relation("header_settings_background_image_idTomedia")
+  pages                                            pages[]                         @relation("pages_hero_image_idTomedia")
+  payload_locked_documents_rels                    payload_locked_documents_rels[]
+  seo_settings_seo_settings_favicon_idTomedia      seo_settings[]                  @relation("seo_settings_favicon_idTomedia")
+  seo_settings_seo_settings_og_image_idTomedia     seo_settings[]                  @relation("seo_settings_og_image_idTomedia")
+  site_settings_site_settings_logo_idTomedia       site_settings[]                 @relation("site_settings_logo_idTomedia")
+  site_settings_site_settings_logo_white_idTomedia site_settings[]                 @relation("site_settings_logo_white_idTomedia")
+
+  @@index([created_at])
+  @@index([updated_at])
+}
+
+model navigation {
+  id         Int       @id @default(autoincrement())
+  updated_at DateTime? @db.Timestamptz(3)
+  created_at DateTime? @db.Timestamptz(3)
+}
+
+model navigation_footer_menu_columns {
+  order     Int    @map("_order")
+  parent_id Int    @map("_parent_id")
+  id        String @id @db.VarChar
+  title     String @db.VarChar
+}
+
+model navigation_footer_menu_columns_links {
+  order           Int      @map("_order")
+  parent_id       String   @map("_parent_id") @db.VarChar
+  id              String   @id @db.VarChar
+  label           String   @db.VarChar
+  url             String   @db.VarChar
+  open_in_new_tab Boolean? @default(false)
+}
+
+model navigation_main_menu {
+  order           Int      @map("_order")
+  parent_id       Int      @map("_parent_id")
+  id              String   @id @db.VarChar
+  label           String   @db.VarChar
+  url             String   @db.VarChar
+  open_in_new_tab Boolean? @default(false)
+  enabled         Boolean? @default(true)
+}
+
+model navigation_main_menu_children {
+  order           Int      @map("_order")
+  parent_id       String   @map("_parent_id") @db.VarChar
+  id              String   @id @db.VarChar
+  label           String   @db.VarChar
+  url             String   @db.VarChar
+  open_in_new_tab Boolean? @default(false)
+  enabled         Boolean? @default(true)
+}
+
+model pages {
+  id                            Int                             @id @default(autoincrement())
+  title                         String                          @db.VarChar
+  slug                          String                          @unique(map: "pages_slug_idx") @db.VarChar
+  content                       Json?
+  meta_title                    String?                         @db.VarChar
+  meta_description              String?                         @db.VarChar
+  updated_at                    DateTime                        @default(now()) @db.Timestamptz(3)
+  created_at                    DateTime                        @default(now()) @db.Timestamptz(3)
+  template                      String?                         @default("default") @db.VarChar
+  subtitle                      String?                         @db.VarChar
+  hero_image_id                 Int?
+  sidebar_title                 String?                         @db.VarChar
+  sidebar_content               Json?
+  cta_title                     String?                         @db.VarChar
+  cta_button_text               String?                         @db.VarChar
+  cta_button_link               String?                         @db.VarChar
+  media                         media?                          @relation("pages_hero_image_idTomedia", fields: [hero_image_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  payload_locked_documents_rels payload_locked_documents_rels[]
+
+  @@index([created_at])
+  @@index([updated_at])
+}
+
+model payload_kv {
+  id   Int    @id @default(autoincrement())
+  key  String @unique(map: "payload_kv_key_idx") @db.VarChar
+  data Json
+}
+
+model payload_locked_documents {
+  id                            Int                             @id @default(autoincrement())
+  global_slug                   String?                         @db.VarChar
+  updated_at                    DateTime                        @default(now()) @db.Timestamptz(3)
+  created_at                    DateTime                        @default(now()) @db.Timestamptz(3)
+  payload_locked_documents_rels payload_locked_documents_rels[]
+
+  @@index([created_at])
+  @@index([global_slug])
+  @@index([updated_at])
+}
+
+model payload_locked_documents_rels {
+  id                       Int                      @id @default(autoincrement())
+  order                    Int?
+  parent_id                Int
+  path                     String                   @db.VarChar
+  users_id                 Int?
+  media_id                 Int?
+  blog_posts_id            Int?
+  pages_id                 Int?
+  routes_id                Int?
+  featured_loans_id        Int?
+  blog_posts               blog_posts?              @relation(fields: [blog_posts_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_locked_documents_rels_blog_posts_fk")
+  media                    media?                   @relation(fields: [media_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_locked_documents_rels_media_fk")
+  pages                    pages?                   @relation(fields: [pages_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_locked_documents_rels_pages_fk")
+  payload_locked_documents payload_locked_documents @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_locked_documents_rels_parent_fk")
+  users                    users?                   @relation(fields: [users_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_locked_documents_rels_users_fk")
+
+  @@index([blog_posts_id])
+  @@index([media_id])
+  @@index([order])
+  @@index([pages_id])
+  @@index([parent_id], map: "payload_locked_documents_rels_parent_idx")
+  @@index([path])
+  @@index([users_id])
+}
+
+model payload_migrations {
+  id         Int      @id @default(autoincrement())
+  name       String?  @db.VarChar
+  batch      Decimal? @db.Decimal
+  updated_at DateTime @default(now()) @db.Timestamptz(3)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([created_at])
+  @@index([updated_at])
+}
+
+model payload_preferences {
+  id                       Int                        @id @default(autoincrement())
+  key                      String?                    @db.VarChar
+  value                    Json?
+  updated_at               DateTime                   @default(now()) @db.Timestamptz(3)
+  created_at               DateTime                   @default(now()) @db.Timestamptz(3)
+  payload_preferences_rels payload_preferences_rels[]
+
+  @@index([created_at])
+  @@index([key])
+  @@index([updated_at])
+}
+
+model payload_preferences_rels {
+  id                  Int                 @id @default(autoincrement())
+  order               Int?
+  parent_id           Int
+  path                String              @db.VarChar
+  users_id            Int?
+  payload_preferences payload_preferences @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_preferences_rels_parent_fk")
+  users               users?              @relation(fields: [users_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_preferences_rels_users_fk")
+
+  @@index([order])
+  @@index([parent_id], map: "payload_preferences_rels_parent_idx")
+  @@index([path])
+  @@index([users_id])
+}
+
+model routes {
+  id          Int               @id @default(autoincrement())
+  name        String            @db.VarChar
+  path        String            @unique(map: "routes_path_idx") @db.VarChar
+  description String?           @db.VarChar
+  icon        enum_routes_icon? @default(document)
+  is_active   Boolean?          @default(true)
+  updated_at  DateTime          @default(now()) @db.Timestamptz(3)
+  created_at  DateTime          @default(now()) @db.Timestamptz(3)
+}
+
+model seo_settings {
+  id                                    Int       @id @default(autoincrement())
+  site_title                            String?   @db.VarChar
+  meta_description                      String?   @db.VarChar
+  meta_keywords                         String?   @db.VarChar
+  favicon_id                            Int?
+  og_title                              String?   @db.VarChar
+  og_description                        String?   @db.VarChar
+  og_image_id                           Int?
+  google_analytics_id                   String?   @db.VarChar
+  updated_at                            DateTime? @default(now()) @db.Timestamptz(3)
+  created_at                            DateTime? @default(now()) @db.Timestamptz(3)
+  media_seo_settings_favicon_idTomedia  media?    @relation("seo_settings_favicon_idTomedia", fields: [favicon_id], references: [id], onUpdate: NoAction, map: "seo_settings_favicon_id_media_id_fk")
+  media_seo_settings_og_image_idTomedia media?    @relation("seo_settings_og_image_idTomedia", fields: [og_image_id], references: [id], onUpdate: NoAction, map: "seo_settings_og_image_id_media_id_fk")
+
+  @@index([favicon_id], map: "seo_settings_favicon_idx")
+  @@index([og_image_id], map: "seo_settings_og_image_idx")
+}
+
+model site_settings {
+  id                                       Int       @id @default(autoincrement())
+  logo_id                                  Int?
+  logo_white_id                            Int?
+  phone                                    String?   @db.VarChar
+  email                                    String?   @db.VarChar
+  address                                  String?   @db.VarChar
+  legal_banner                             String?   @db.VarChar
+  updated_at                               DateTime? @db.Timestamptz(3)
+  created_at                               DateTime? @db.Timestamptz(3)
+  logo_height                              Decimal?  @default(40) @db.Decimal
+  logo_white_height                        Decimal?  @default(40) @db.Decimal
+  company_name                             String?   @db.VarChar
+  social_links_facebook                    String?   @db.VarChar
+  social_links_twitter                     String?   @db.VarChar
+  social_links_instagram                   String?   @db.VarChar
+  social_links_linkedin                    String?   @db.VarChar
+  social_links_youtube                     String?   @db.VarChar
+  media_site_settings_logo_idTomedia       media?    @relation("site_settings_logo_idTomedia", fields: [logo_id], references: [id], onUpdate: NoAction, map: "site_settings_logo_id_media_id_fk")
+  media_site_settings_logo_white_idTomedia media?    @relation("site_settings_logo_white_idTomedia", fields: [logo_white_id], references: [id], onUpdate: NoAction, map: "site_settings_logo_white_id_media_id_fk")
+
+  @@index([logo_id], map: "site_settings_logo_idx")
+  @@index([logo_white_id], map: "site_settings_logo_white_idx")
+}
+
+model users {
+  id                            Int                             @id @default(autoincrement())
+  updated_at                    DateTime                        @default(now()) @db.Timestamptz(3)
+  created_at                    DateTime                        @default(now()) @db.Timestamptz(3)
+  email                         String                          @unique(map: "users_email_idx") @db.VarChar
+  reset_password_token          String?                         @db.VarChar
+  reset_password_expiration     DateTime?                       @db.Timestamptz(3)
+  salt                          String?                         @db.VarChar
+  hash                          String?                         @db.VarChar
+  login_attempts                Decimal?                        @default(0) @db.Decimal
+  lock_until                    DateTime?                       @db.Timestamptz(3)
+  payload_locked_documents_rels payload_locked_documents_rels[]
+  payload_preferences_rels      payload_preferences_rels[]
+  users_sessions                users_sessions[]
+
+  @@index([created_at])
+  @@index([updated_at])
+}
+
+model users_sessions {
+  order      Int       @map("_order")
+  parent_id  Int       @map("_parent_id")
+  id         String    @id @db.VarChar
+  created_at DateTime? @db.Timestamptz(3)
+  expires_at DateTime  @db.Timestamptz(3)
+  users      users     @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "users_sessions_parent_id_fk")
+
+  @@index([order], map: "users_sessions_order_idx")
+  @@index([parent_id], map: "users_sessions_parent_id_idx")
+}
+
+enum enum_featured_loans_icon {
+  home
+  building
+  refresh
+  shield
+  star
+  dollar
+  chart
+  key
+}
+
+enum enum_routes_icon {
+  calculator
+  document
+  home
+  user
+  chart
+  money
+  info
+  question
+}

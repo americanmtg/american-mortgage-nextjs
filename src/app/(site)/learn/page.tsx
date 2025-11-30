@@ -1,19 +1,5 @@
 import Link from 'next/link';
-import { client } from '@/lib/sanity';
-
-async function getBlogPosts() {
-  return await client.fetch(`
-    *[_type == "blogPost"] | order(publishedAt desc) {
-      _id,
-      title,
-      "slug": slug.current,
-      excerpt,
-      readTime,
-      publishedAt,
-      "category": categories[0]->title
-    }
-  `);
-}
+import { getBlogPosts } from '@/lib/data';
 
 export default async function LearnPage() {
   const blogPosts = await getBlogPosts();
@@ -38,27 +24,20 @@ export default async function LearnPage() {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {blogPosts.map((post: any) => (
-                <Link 
-                  key={post._id}
+                <Link
+                  key={post.id}
                   href={`/learn/${post.slug}`}
                   className="card group hover:shadow-xl transition-shadow"
                 >
                   <div className="aspect-video bg-grey-200 relative overflow-hidden">
-                    {post.category && (
-                      <span className="absolute bottom-4 left-4 px-3 py-1 bg-red text-white text-xs font-semibold rounded-full">
-                        {post.category}
-                      </span>
-                    )}
                   </div>
                   <div className="p-6">
                     <div className="flex items-center gap-4 text-sm text-grey-500 mb-3">
-                      {post.readTime && <span>{post.readTime}</span>}
-                      {post.readTime && post.publishedAt && <span>•</span>}
                       {post.publishedAt && (
-                        <span>{new Date(post.publishedAt).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric', 
-                          year: 'numeric' 
+                        <span>{new Date(post.publishedAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
                         })}</span>
                       )}
                     </div>
