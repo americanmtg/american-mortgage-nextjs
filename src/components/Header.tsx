@@ -8,14 +8,17 @@ interface NavItem {
   url: string;
   openInNewTab?: boolean;
   enabled?: boolean | null;
+  showOnDesktop?: boolean;
+  showOnMobileBar?: boolean;
+  showInHamburger?: boolean;
 }
 
 const defaultNavItems: NavItem[] = [
-  { label: 'About', url: '/about' },
-  { label: 'Loan Options', url: '/loans' },
-  { label: 'Calculator', url: '/calculator' },
-  { label: 'Learn', url: '/learn' },
-  { label: 'Reviews', url: '/reviews' },
+  { label: 'About', url: '/about', showOnDesktop: true, showOnMobileBar: false, showInHamburger: true },
+  { label: 'Loan Options', url: '/loans', showOnDesktop: true, showOnMobileBar: false, showInHamburger: true },
+  { label: 'Calculator', url: '/calculator', showOnDesktop: true, showOnMobileBar: false, showInHamburger: true },
+  { label: 'Learn', url: '/learn', showOnDesktop: true, showOnMobileBar: false, showInHamburger: true },
+  { label: 'Reviews', url: '/reviews', showOnDesktop: true, showOnMobileBar: false, showInHamburger: true },
 ];
 
 export default async function Header() {
@@ -32,6 +35,9 @@ export default async function Header() {
 
   const phone = settings?.phone || '1-800-906-8960';
   const legalBanner = settings?.legalBanner || 'American Mortgage services are not available in NY, NV, NJ, UT, VT.';
+  const legalBannerMobile = settings?.legalBannerMobile || legalBanner;
+  const legalBannerShowDesktop = settings?.legalBannerShowDesktop ?? true;
+  const legalBannerShowMobile = settings?.legalBannerShowMobile ?? true;
   const logoUrl = getMediaUrl(settings?.logo);
   const logoHeight = settings?.logoHeight || 60;
 
@@ -100,10 +106,18 @@ export default async function Header() {
 
   return (
     <>
-      {/* Top Banner */}
-      <div className="bg-[#f6f7f7] text-[#323232] text-center py-2 text-sm">
-        {legalBanner}
-      </div>
+      {/* Top Banner - Desktop */}
+      {legalBannerShowDesktop && (
+        <div className="hidden md:block bg-[#f6f7f7] text-[#323232] text-center py-2 text-sm">
+          {legalBanner}
+        </div>
+      )}
+      {/* Top Banner - Mobile */}
+      {legalBannerShowMobile && (
+        <div className="md:hidden bg-[#f6f7f7] text-[#323232] text-center py-2 text-sm">
+          {legalBannerMobile}
+        </div>
+      )}
 
       {/* Main Header */}
       <header className="border-b border-grey-200 sticky top-0 z-50" style={getHeaderStyle()}>
@@ -127,7 +141,8 @@ export default async function Header() {
           <div className="absolute inset-0" style={{ backgroundColor: bgImageOverlay }} />
         )}
         <div className="container-custom relative">
-          <div className="flex items-center justify-between h-20">
+          {/* Desktop Header */}
+          <div className="hidden md:flex items-center justify-between h-20">
             {/* Logo */}
             <Link
               href="/"
@@ -151,8 +166,8 @@ export default async function Header() {
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              {navItems.map((item) => {
+            <nav className="flex items-center gap-8">
+              {navItems.filter(item => item.showOnDesktop !== false).map((item) => {
                 const isExternal = item.url.startsWith('http') || item.openInNewTab;
                 if (isExternal) {
                   return (
@@ -161,7 +176,7 @@ export default async function Header() {
                       href={item.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-grey-700 font-medium hover:text-navy transition-colors"
+                      className="text-[#0f2e71] hover:text-[#d93c37] transition-colors" style={{ fontFamily: "'Open Sans', sans-serif", fontSize: '18px', fontWeight: 700 }}
                     >
                       {item.label}
                     </a>
@@ -171,7 +186,7 @@ export default async function Header() {
                   <Link
                     key={item.label}
                     href={item.url}
-                    className="text-grey-700 font-medium hover:text-navy transition-colors"
+                    className="text-[#0f2e71] hover:text-[#d93c37] transition-colors" style={{ fontFamily: "'Open Sans', sans-serif", fontSize: '18px', fontWeight: 700 }}
                   >
                     {item.label}
                   </Link>
@@ -180,21 +195,62 @@ export default async function Header() {
             </nav>
 
             {/* CTA Buttons */}
-            <div className="hidden md:flex items-center gap-4">
+            <div className="flex items-center gap-4">
               <a href={`tel:${phone.replace(/[^0-9]/g, '')}`} className="text-navy font-semibold">
                 {phone}
               </a>
               <Link
                 href={buttonUrl}
-                className="btn btn-primary"
-                style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
+                className="btn btn-primary px-6 py-2.5 rounded font-semibold transition-colors bg-[#141a47] hover:bg-[#d93c37] text-white"
               >
                 {buttonText}
               </Link>
             </div>
+          </div>
 
-            {/* Mobile Menu Button */}
-            <MobileMenuButton navItems={navItems} phone={phone} buttonText={buttonText} buttonUrl={buttonUrl} buttonBgColor={buttonBgColor} buttonTextColor={buttonTextColor} />
+          {/* Mobile Header */}
+          <div className="md:hidden">
+            {/* Top row: Logo, Apply Now button, Hamburger */}
+            <div className="flex items-center justify-between h-16">
+              <Link
+                href="/"
+                className="flex-shrink-0 flex items-center"
+                style={{ height: '40px' }}
+              >
+                {logoUrl && (
+                  <Image
+                    src={logoUrl}
+                    alt="American Mortgage"
+                    width={133}
+                    height={40}
+                    priority
+                    unoptimized
+                    style={{
+                      height: '40px',
+                      width: 'auto'
+                    }}
+                  />
+                )}
+              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  href={buttonUrl}
+                  className="px-4 py-2 rounded font-semibold text-sm transition-colors"
+                  style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
+                >
+                  Apply Now
+                </Link>
+                <MobileMenuButton navItems={navItems} phone={phone} buttonText={buttonText} buttonUrl={buttonUrl} buttonBgColor={buttonBgColor} buttonTextColor={buttonTextColor} />
+              </div>
+            </div>
+            {/* Divider */}
+            <div className="border-t border-gray-200" />
+            {/* Mobile bar menu items */}
+            <nav className="flex items-center justify-center gap-6 py-3">
+              {navItems.filter(item => item.showOnMobileBar).map((item) => (
+                <Link key={item.label} href={item.url} className="text-[#0f2e71] font-bold text-sm">{item.label}</Link>
+              ))}
+            </nav>
           </div>
         </div>
       </header>

@@ -8,6 +8,9 @@ interface MenuItem {
   url: string;
   openInNewTab?: boolean;
   enabled?: boolean;
+  showOnDesktop?: boolean;
+  showOnMobileBar?: boolean;
+  showInHamburger?: boolean;
   children?: MenuItem[];
 }
 
@@ -79,6 +82,9 @@ export default function MenuManagement() {
       url: '/',
       openInNewTab: false,
       enabled: true,
+      showOnDesktop: true,
+      showOnMobileBar: false,
+      showInHamburger: true,
     };
     setNavigation({
       ...navigation,
@@ -230,7 +236,7 @@ export default function MenuManagement() {
                         />
                       </div>
                     </div>
-                    <div className="flex items-center gap-6">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -249,6 +255,38 @@ export default function MenuManagement() {
                         />
                         <span className="text-sm text-gray-700 dark:text-gray-300">Open in new tab</span>
                       </label>
+                    </div>
+                    <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Visibility</p>
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={item.showOnDesktop !== false}
+                            onChange={(e) => updateMenuItem(index, { showOnDesktop: e.target.checked })}
+                            className="w-4 h-4 text-navy rounded focus:ring-navy"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">Desktop Nav</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={item.showOnMobileBar || false}
+                            onChange={(e) => updateMenuItem(index, { showOnMobileBar: e.target.checked })}
+                            className="w-4 h-4 text-navy rounded focus:ring-navy"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">Mobile Bar</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={item.showInHamburger !== false}
+                            onChange={(e) => updateMenuItem(index, { showInHamburger: e.target.checked })}
+                            className="w-4 h-4 text-navy rounded focus:ring-navy"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">Hamburger Menu</span>
+                        </label>
+                      </div>
                     </div>
                     <div className="flex justify-end">
                       <button
@@ -287,7 +325,7 @@ export default function MenuManagement() {
 
                       {/* Content */}
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className={`font-medium ${item.enabled === false ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>
                             {item.label || '(No label)'}
                           </span>
@@ -302,7 +340,21 @@ export default function MenuManagement() {
                             </svg>
                           )}
                         </div>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">{item.url}</span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm text-gray-500 dark:text-gray-400">{item.url}</span>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">•</span>
+                          <div className="flex items-center gap-1">
+                            {item.showOnDesktop !== false && (
+                              <span className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded">Desktop</span>
+                            )}
+                            {item.showOnMobileBar && (
+                              <span className="text-xs px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded">Mobile Bar</span>
+                            )}
+                            {item.showInHamburger !== false && (
+                              <span className="text-xs px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded">Hamburger</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -349,13 +401,19 @@ export default function MenuManagement() {
             <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Disable items to temporarily hide them without deleting.
+            <strong>Desktop Nav:</strong> Shows in the main navigation bar on desktop screens.
           </li>
           <li className="flex items-start gap-2">
             <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Changes are saved when you click &quot;Save Changes&quot; - they won&apos;t be lost if you reorder items first.
+            <strong>Mobile Bar:</strong> Shows in the quick-access bar below the header on mobile (e.g., About, Reviews, Learn).
+          </li>
+          <li className="flex items-start gap-2">
+            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <strong>Hamburger Menu:</strong> Shows when the mobile hamburger menu is opened.
           </li>
         </ul>
       </div>

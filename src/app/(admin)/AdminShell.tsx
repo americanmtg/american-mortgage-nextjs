@@ -75,6 +75,18 @@ const LoansIcon = () => (
   </svg>
 );
 
+const PreapprovalIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+  </svg>
+);
+
+const HomepageIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+  </svg>
+);
+
 const ViewSiteIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -134,6 +146,8 @@ const menuItems: MenuItem[] = [
   { label: 'Routes', href: '/admin/routes', icon: RoutesIcon, roles: ['admin'] },
   { label: 'Footer', href: '/admin/footer', icon: FooterIcon, roles: ['admin'] },
   { label: 'Featured Loans', href: '/admin/loans', icon: LoansIcon, roles: ['admin'] },
+  { label: 'Pre-Approval Letters', href: '/admin/preapproval-letters', icon: PreapprovalIcon, roles: ['admin'] },
+  { label: 'Homepage', href: '/admin/homepage', icon: HomepageIcon, roles: ['admin'] },
   { label: 'Header', href: '/admin/header', icon: HeaderIcon, roles: ['admin'] },
   { label: 'SEO', href: '/admin/seo', icon: SeoIcon, roles: ['admin'] },
   { label: 'View Site', href: '/admin/view-site', icon: ViewSiteIcon },

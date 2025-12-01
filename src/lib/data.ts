@@ -91,6 +91,9 @@ export async function getSiteSettings() {
       email: settings.email,
       address: settings.address,
       legalBanner: settings.legal_banner,
+      legalBannerMobile: settings.legal_banner_mobile,
+      legalBannerShowDesktop: settings.legal_banner_show_desktop ?? true,
+      legalBannerShowMobile: settings.legal_banner_show_mobile ?? true,
       logo: transformMedia(settings.media_site_settings_logo_idTomedia),
       logoWhite: transformMedia(settings.media_site_settings_logo_white_idTomedia),
       logoHeight: settings.logo_height ? Number(settings.logo_height) : 40,
@@ -107,6 +110,85 @@ export async function getSiteSettings() {
     }
   } catch (error) {
     console.error('Error fetching site settings:', error)
+    return null
+  }
+}
+
+// Homepage Settings
+export async function getHomepageSettings() {
+  try {
+    const settings = await prisma.homepage_settings.findFirst()
+
+    if (!settings) return null
+
+    return {
+      id: settings.id,
+      hero: {
+        eyebrow: settings.hero_eyebrow || 'Trusted Nationwide',
+        headlineLine1: settings.hero_headline_line1 || 'Get home with the',
+        headlineLine2: settings.hero_headline_line2 || 'first name in financing',
+        buttonText: settings.hero_button_text || 'Get Started Now',
+        buttonUrl: settings.hero_button_url || '/apply',
+        reassuranceTime: settings.hero_reassurance_time || '3 min',
+        reassuranceText: settings.hero_reassurance_text || 'No impact to credit',
+        ratingPercent: settings.hero_rating_percent || '98%',
+        ratingText: settings.hero_rating_text || 'would recommend',
+      },
+      featuredLoans: {
+        eyebrow: settings.featured_loans_eyebrow || 'Featured Loans',
+        headlineLine1: settings.featured_loans_headline_line1 || 'From first home to refinance,',
+        headlineLine2: settings.featured_loans_headline_line2 || "we're here for you.",
+      },
+      dpa: {
+        enabled: settings.dpa_enabled ?? true,
+        headline: settings.dpa_headline || 'Make homebuying more affordable with down payment assistance.',
+        feature1: settings.dpa_feature1 || 'Cover the downpayment, closing costs, or both',
+        feature2: settings.dpa_feature2 || 'Forgivable and long-term repayment plans',
+        feature3: settings.dpa_feature3 || '0% down options available',
+        buttonText: settings.dpa_button_text || 'Check Eligibility',
+        buttonUrl: settings.dpa_button_url || '/apply',
+        reassuranceText: settings.dpa_reassurance_text || 'No impact to credit',
+      },
+      tools: {
+        eyebrow: settings.tools_eyebrow || 'Tools & Calculators',
+        headlineLine1: settings.tools_headline_line1 || 'Get an estimate instantly with our',
+        headlineLine2: settings.tools_headline_line2 || 'online mortgage tools',
+        // Use JSON column if available, otherwise fall back to legacy fixed columns
+        cards: settings.tools_cards ? (settings.tools_cards as any[]) : [
+          {
+            title: settings.tools_card1_title || 'Mortgage Calculator',
+            description: settings.tools_card1_description || 'Estimate your monthly payment',
+            icon: settings.tools_card1_icon || '🏠',
+            url: settings.tools_card1_url || '/calculator',
+          },
+          {
+            title: settings.tools_card2_title || 'Affordability Calculator',
+            description: settings.tools_card2_description || 'See how much home you can afford',
+            icon: settings.tools_card2_icon || '💰',
+            url: settings.tools_card2_url || '/calculator',
+          },
+          {
+            title: settings.tools_card3_title || 'Refinance Calculator',
+            description: settings.tools_card3_description || 'Calculate your potential savings',
+            icon: settings.tools_card3_icon || '📊',
+            url: settings.tools_card3_url || '/calculator',
+          },
+        ],
+      },
+      moreLoans: {
+        enabled: settings.more_loans_enabled ?? true,
+        text: settings.more_loans_text || 'Not finding the right fit? We have',
+        linkText: settings.more_loans_link_text || 'more loan options',
+        linkUrl: settings.more_loans_link_url || '/loans',
+      },
+      articles: {
+        title: settings.articles_title || 'Latest Articles',
+        subtitle: settings.articles_subtitle || 'Tips and guides for homebuyers',
+      },
+      updatedAt: settings.updated_at,
+    }
+  } catch (error) {
+    console.error('Error fetching homepage settings:', error)
     return null
   }
 }
@@ -243,6 +325,9 @@ export async function getNavigation() {
           url: item.url,
           openInNewTab: item.open_in_new_tab || false,
           enabled: item.enabled,
+          showOnDesktop: item.show_on_desktop ?? true,
+          showOnMobileBar: item.show_on_mobile_bar ?? false,
+          showInHamburger: item.show_in_hamburger ?? true,
           children: children.map(child => ({
             id: child.id,
             label: child.label,

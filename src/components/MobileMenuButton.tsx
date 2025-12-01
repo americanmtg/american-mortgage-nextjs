@@ -6,6 +6,7 @@ import { useState } from 'react';
 interface NavItem {
   label: string;
   url: string;
+  showInHamburger?: boolean;
 }
 
 interface MobileMenuButtonProps {
@@ -40,7 +41,7 @@ export default function MobileMenuButton({ navItems, phone, buttonText = 'Apply 
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 right-0 bg-white border-t border-grey-200 shadow-lg">
           <div className="container-custom py-4 space-y-4">
-            {navItems.map((item) => (
+            {navItems.filter(item => item.showInHamburger !== false).map((item) => (
               <Link
                 key={item.label}
                 href={item.url}

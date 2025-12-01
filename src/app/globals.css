@@ -101,17 +101,20 @@
 }
 
 /* Shine button effect */
-.btn-shine {
+.btn-shine,
+.shine-button {
   position: relative;
   overflow: hidden;
   transition: transform 0.2s ease-out;
 }
 
-.btn-shine:hover {
-  transform: scale(1.05);
+.btn-shine:hover,
+.shine-button:hover {
+  transform: scale(1.02);
 }
 
-.btn-shine::after {
+.btn-shine::after,
+.shine-button::after {
   content: "";
   pointer-events: none;
   position: absolute;
@@ -123,7 +126,8 @@
   transform: skew(-20deg);
 }
 
-.btn-shine:hover::after {
+.btn-shine:hover::after,
+.shine-button:hover::after {
   left: 150%;
   transition: left 0.5s ease-out;
 }

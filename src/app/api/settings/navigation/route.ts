@@ -36,6 +36,9 @@ export async function GET() {
           url: item.url,
           openInNewTab: item.open_in_new_tab || false,
           enabled: item.enabled ?? true,
+          showOnDesktop: item.show_on_desktop ?? true,
+          showOnMobileBar: item.show_on_mobile_bar ?? false,
+          showInHamburger: item.show_in_hamburger ?? true,
           children: children.map(child => ({
             id: child.id,
             label: child.label,
@@ -99,6 +102,9 @@ export async function PUT(request: NextRequest) {
           url: item.url,
           open_in_new_tab: item.openInNewTab || false,
           enabled: item.enabled ?? true,
+          show_on_desktop: item.showOnDesktop ?? true,
+          show_on_mobile_bar: item.showOnMobileBar ?? false,
+          show_in_hamburger: item.showInHamburger ?? true,
           order: menuIndex,
         },
       })
@@ -148,6 +154,9 @@ export async function PUT(request: NextRequest) {
           url: item.url,
           openInNewTab: item.open_in_new_tab || false,
           enabled: item.enabled ?? true,
+          showOnDesktop: item.show_on_desktop ?? true,
+          showOnMobileBar: item.show_on_mobile_bar ?? false,
+          showInHamburger: item.show_in_hamburger ?? true,
           children: children.map(child => ({
             id: child.id,
             label: child.label,

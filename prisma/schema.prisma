@@ -184,13 +184,16 @@ model navigation_footer_menu_columns_links {
 }
 
 model navigation_main_menu {
-  order           Int      @map("_order")
-  parent_id       Int      @map("_parent_id")
-  id              String   @id @db.VarChar
-  label           String   @db.VarChar
-  url             String   @db.VarChar
-  open_in_new_tab Boolean? @default(false)
-  enabled         Boolean? @default(true)
+  order              Int      @map("_order")
+  parent_id          Int      @map("_parent_id")
+  id                 String   @id @db.VarChar
+  label              String   @db.VarChar
+  url                String   @db.VarChar
+  open_in_new_tab    Boolean? @default(false)
+  enabled            Boolean? @default(true)
+  show_on_desktop    Boolean? @default(true)
+  show_on_mobile_bar Boolean? @default(false)
+  show_in_hamburger  Boolean? @default(true)
 }
 
 model navigation_main_menu_children {
@@ -348,6 +351,9 @@ model site_settings {
   email                                    String?   @db.VarChar
   address                                  String?   @db.VarChar
   legal_banner                             String?   @db.VarChar
+  legal_banner_mobile                      String?   @db.VarChar
+  legal_banner_show_desktop                Boolean?  @default(true)
+  legal_banner_show_mobile                 Boolean?  @default(true)
   updated_at                               DateTime? @db.Timestamptz(3)
   created_at                               DateTime? @db.Timestamptz(3)
   logo_height                              Decimal?  @default(40) @db.Decimal
@@ -363,6 +369,66 @@ model site_settings {
 
   @@index([logo_id], map: "site_settings_logo_idx")
   @@index([logo_white_id], map: "site_settings_logo_white_idx")
+}
+
+model homepage_settings {
+  id                                 Int       @id @default(autoincrement())
+  updated_at                         DateTime? @db.Timestamptz(3)
+  created_at                         DateTime? @db.Timestamptz(3)
+
+  // Hero Section
+  hero_eyebrow                       String?   @db.VarChar
+  hero_headline_line1                String?   @db.VarChar
+  hero_headline_line2                String?   @db.VarChar
+  hero_button_text                   String?   @db.VarChar
+  hero_button_url                    String?   @db.VarChar
+  hero_reassurance_time              String?   @db.VarChar
+  hero_reassurance_text              String?   @db.VarChar
+  hero_rating_percent                String?   @db.VarChar
+  hero_rating_text                   String?   @db.VarChar
+
+  // Featured Loans Section
+  featured_loans_eyebrow             String?   @db.VarChar
+  featured_loans_headline_line1      String?   @db.VarChar
+  featured_loans_headline_line2      String?   @db.VarChar
+
+  // Down Payment Assistance Card
+  dpa_enabled                        Boolean?  @default(true)
+  dpa_headline                       String?   @db.VarChar
+  dpa_feature1                       String?   @db.VarChar
+  dpa_feature2                       String?   @db.VarChar
+  dpa_feature3                       String?   @db.VarChar
+  dpa_button_text                    String?   @db.VarChar
+  dpa_button_url                     String?   @db.VarChar
+  dpa_reassurance_text               String?   @db.VarChar
+
+  // Tools & Calculators Section
+  tools_eyebrow                      String?   @db.VarChar
+  tools_headline_line1               String?   @db.VarChar
+  tools_headline_line2               String?   @db.VarChar
+  tools_card1_title                  String?   @db.VarChar
+  tools_card1_description            String?   @db.VarChar
+  tools_card1_icon                   String?   @db.VarChar
+  tools_card1_url                    String?   @db.VarChar
+  tools_card2_title                  String?   @db.VarChar
+  tools_card2_description            String?   @db.VarChar
+  tools_card2_icon                   String?   @db.VarChar
+  tools_card2_url                    String?   @db.VarChar
+  tools_card3_title                  String?   @db.VarChar
+  tools_card3_description            String?   @db.VarChar
+  tools_card3_icon                   String?   @db.VarChar
+  tools_card3_url                    String?   @db.VarChar
+  tools_cards                        Json?     @db.JsonB
+
+  // More Loan Options Card
+  more_loans_enabled                 Boolean?  @default(true)
+  more_loans_text                    String?   @db.VarChar
+  more_loans_link_text               String?   @db.VarChar
+  more_loans_link_url                String?   @db.VarChar
+
+  // Latest Articles Section
+  articles_title                     String?   @db.VarChar
+  articles_subtitle                  String?   @db.VarChar
 }
 
 model users {
@@ -416,4 +482,57 @@ enum enum_routes_icon {
   money
   info
   question
+}
+
+enum enum_preapproval_status {
+  authentic
+  invalid
+  expired
+}
+
+model loan_officers {
+  id                  Int                   @id @default(autoincrement())
+  name                String                @db.VarChar(255)
+  phone               String                @db.VarChar(50)
+  email               String                @db.VarChar(255)
+  is_active           Boolean               @default(true)
+  updated_at          DateTime              @default(now()) @db.Timestamptz(3)
+  created_at          DateTime              @default(now()) @db.Timestamptz(3)
+  preapproval_letters preapproval_letters[]
+
+  @@index([is_active])
+  @@index([created_at])
+}
+
+model preapproval_letters {
+  id              Int                      @id @default(autoincrement())
+  borrower_name   String                   @db.VarChar(255)
+  letter_date     DateTime                 @db.Date
+  reference_id    String                   @unique @db.VarChar(100)
+  status          enum_preapproval_status  @default(authentic)
+  loan_officer_id Int?
+  notes           String?                  @db.Text
+  updated_at      DateTime                 @default(now()) @db.Timestamptz(3)
+  created_at      DateTime                 @default(now()) @db.Timestamptz(3)
+  loan_officer    loan_officers?           @relation(fields: [loan_officer_id], references: [id], onDelete: SetNull)
+
+  @@index([reference_id])
+  @@index([status])
+  @@index([loan_officer_id])
+  @@index([created_at])
+}
+
+model verify_page_settings {
+  id                    Int       @id @default(1)
+  page_title            String?   @default("Pre-Approval Letter Verification") @db.VarChar(255)
+  page_subtitle         String?   @default("Enter the reference ID from your pre-approval letter to verify its authenticity.")
+  success_title         String?   @default("Verified - Authentic Letter") @db.VarChar(255)
+  success_message       String?   @default("This pre-approval letter is authentic.")
+  fail_title            String?   @default("Verification Failed") @db.VarChar(255)
+  fail_message          String?   @default("We could not verify this reference ID. The letter may be invalid, expired, or entered incorrectly.")
+  default_contact_name  String?   @default("American Mortgage") @db.VarChar(255)
+  default_contact_phone String?   @default("(XXX) XXX-XXXX") @db.VarChar(50)
+  default_contact_email String?   @default("verify@americanmtg.com") @db.VarChar(255)
+  updated_at            DateTime? @default(now()) @db.Timestamptz(6)
+  created_at            DateTime? @default(now()) @db.Timestamptz(6)
 }

@@ -7,6 +7,9 @@ interface SiteSettings {
   email?: string;
   address?: string;
   legalBanner?: string;
+  legalBannerMobile?: string;
+  legalBannerShowDesktop?: boolean;
+  legalBannerShowMobile?: boolean;
   companyName?: string;
   logo?: {
     id?: number;
@@ -74,6 +77,9 @@ export default function SettingsPage() {
         email: settings.email || '',
         address: settings.address || '',
         legalBanner: settings.legalBanner || '',
+        legalBannerMobile: settings.legalBannerMobile || '',
+        legalBannerShowDesktop: settings.legalBannerShowDesktop ?? true,
+        legalBannerShowMobile: settings.legalBannerShowMobile ?? true,
         companyName: settings.companyName || '',
         logoHeight: settings.logoHeight || 40,
         logoWhiteHeight: settings.logoWhiteHeight || 60,
@@ -481,16 +487,58 @@ export default function SettingsPage() {
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Legal Banner</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          This text appears at the top of your website.
+          This text appears at the top of your website. You can set different messages for desktop and mobile.
         </p>
 
-        <textarea
-          value={settings.legalBanner || ''}
-          onChange={(e) => setSettings(prev => ({ ...prev, legalBanner: e.target.value }))}
-          placeholder="American Mortgage services are not available in NY, NV, NJ, UT, VT."
-          rows={3}
-          className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white resize-none"
-        />
+        {/* Visibility Toggles */}
+        <div className="flex flex-wrap items-center gap-6 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.legalBannerShowDesktop !== false}
+              onChange={(e) => setSettings(prev => ({ ...prev, legalBannerShowDesktop: e.target.checked }))}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Show on Desktop</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.legalBannerShowMobile !== false}
+              onChange={(e) => setSettings(prev => ({ ...prev, legalBannerShowMobile: e.target.checked }))}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Show on Mobile</span>
+          </label>
+        </div>
+
+        {/* Desktop Banner */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Desktop Message
+          </label>
+          <textarea
+            value={settings.legalBanner || ''}
+            onChange={(e) => setSettings(prev => ({ ...prev, legalBanner: e.target.value }))}
+            placeholder="American Mortgage services are not available in NY, NV, NJ, UT, VT."
+            rows={2}
+            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white resize-none"
+          />
+        </div>
+
+        {/* Mobile Banner */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Mobile Message <span className="text-gray-400 font-normal">(leave empty to use desktop message)</span>
+          </label>
+          <textarea
+            value={settings.legalBannerMobile || ''}
+            onChange={(e) => setSettings(prev => ({ ...prev, legalBannerMobile: e.target.value }))}
+            placeholder="Same as desktop if left empty"
+            rows={2}
+            className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white resize-none"
+          />
+        </div>
       </div>
 
       {/* Social Links */}
