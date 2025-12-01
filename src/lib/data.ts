@@ -248,6 +248,8 @@ export async function getHeaderSettings() {
       headerButtonUrl: settings.header_button_url,
       headerButtonBackgroundColor: settings.header_button_background_color,
       headerButtonTextColor: settings.header_button_text_color,
+      headerButtonIcon: settings.header_button_icon,
+      headerButtonBorderColor: settings.header_button_border_color,
       updatedAt: settings.updated_at,
       createdAt: settings.created_at,
     }
@@ -574,5 +576,29 @@ export async function getMedia(id: number) {
   } catch (error) {
     console.error('Error fetching media:', error)
     return null
+  }
+}
+
+// Mobile Menu Buttons
+export async function getMobileMenuButtons() {
+  try {
+    const buttons = await prisma.mobile_menu_buttons.findMany({
+      where: { is_active: true },
+      orderBy: { order: 'asc' },
+    })
+
+    return buttons.map(btn => ({
+      id: btn.id,
+      label: btn.label,
+      url: btn.url,
+      icon: btn.icon,
+      buttonType: btn.button_type,
+      backgroundColor: btn.background_color,
+      textColor: btn.text_color,
+      borderColor: btn.border_color,
+    }))
+  } catch (error) {
+    console.error('Error fetching mobile menu buttons:', error)
+    return []
   }
 }

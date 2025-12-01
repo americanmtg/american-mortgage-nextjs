@@ -49,6 +49,8 @@ export async function GET() {
       headerButtonUrl: settings.header_button_url,
       headerButtonBackgroundColor: settings.header_button_background_color,
       headerButtonTextColor: settings.header_button_text_color,
+      headerButtonIcon: settings.header_button_icon,
+      headerButtonBorderColor: settings.header_button_border_color,
       updatedAt: settings.updated_at,
     })
   } catch (error) {
@@ -83,6 +85,8 @@ export async function PUT(request: NextRequest) {
       headerButtonUrl,
       headerButtonBackgroundColor,
       headerButtonTextColor,
+      headerButtonIcon,
+      headerButtonBorderColor,
     } = body
 
     const existing = await prisma.header_settings.findFirst()
@@ -110,6 +114,8 @@ export async function PUT(request: NextRequest) {
           ...(headerButtonUrl !== undefined && { header_button_url: headerButtonUrl }),
           ...(headerButtonBackgroundColor !== undefined && { header_button_background_color: headerButtonBackgroundColor }),
           ...(headerButtonTextColor !== undefined && { header_button_text_color: headerButtonTextColor }),
+          ...(headerButtonIcon !== undefined && { header_button_icon: headerButtonIcon }),
+          ...(headerButtonBorderColor !== undefined && { header_button_border_color: headerButtonBorderColor }),
           updated_at: new Date(),
         },
       })
@@ -134,6 +140,8 @@ export async function PUT(request: NextRequest) {
           header_button_url: headerButtonUrl || '/apply',
           header_button_background_color: headerButtonBackgroundColor || '#d93c37',
           header_button_text_color: headerButtonTextColor || '#ffffff',
+          header_button_icon: headerButtonIcon || 'none',
+          header_button_border_color: headerButtonBorderColor || '#d93c37',
         },
       })
     }
@@ -146,6 +154,8 @@ export async function PUT(request: NextRequest) {
       headerButtonUrl: settings.header_button_url,
       headerButtonBackgroundColor: settings.header_button_background_color,
       headerButtonTextColor: settings.header_button_text_color,
+      headerButtonIcon: settings.header_button_icon,
+      headerButtonBorderColor: settings.header_button_border_color,
       updatedAt: settings.updated_at,
     })
   } catch (error) {

@@ -17,9 +17,6 @@ export default async function Footer() {
   const tagline = footerData?.tagline || 'Making homeownership possible for everyone.';
   const copyrightText = footerData?.copyrightText || 'American Mortgage is a DBA of Mortgage Research Center, LLC. Copyright {{year}} Mortgage Research Center, LLC. All Rights Reserved.';
   const nmlsInfo = footerData?.nmlsInfo || 'NMLS ID #1907 (www.nmlsconsumeraccess.org). Equal Housing Opportunity.';
-  const ctaText = footerData?.ctaText || 'See what home loan is right for you';
-  const ctaButtonText = footerData?.ctaButtonText || 'Start Here';
-  const ctaButtonUrl = footerData?.ctaButtonUrl || '/apply';
 
   // Use CMS columns if available, otherwise use defaults
   const footerColumns = footerData?.columns && footerData.columns.length > 0 ? footerData.columns : [
@@ -64,9 +61,9 @@ export default async function Footer() {
 
   return (
     <footer className="bg-grey-900 text-grey-300">
-      <div className="container-custom section-padding">
+      <div className="container-custom py-10 md:py-12">
         {/* Main Footer */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
           {/* Logo Column */}
           <div className="col-span-2 md:col-span-1">
             <div style={{ minHeight: `${logoWhiteHeight}px` }} className="mb-4">
@@ -110,25 +107,13 @@ export default async function Footer() {
         </div>
 
         {/* Legal Text */}
-        <div className="text-xs text-grey-500 space-y-4 pt-8 border-t border-grey-700">
+        <div className="text-xs text-grey-500 space-y-2 pt-6 border-t border-grey-700">
           <p>
             {copyrightText.replace('{{year}}', new Date().getFullYear().toString())}
           </p>
           <p>
             {nmlsInfo}
           </p>
-        </div>
-      </div>
-
-      {/* Sticky CTA Bar */}
-      <div className="bg-navy py-4">
-        <div className="container-custom flex items-center justify-center gap-4">
-          <span className="text-white font-medium hidden sm:inline">
-            {ctaText}
-          </span>
-          <Link href={ctaButtonUrl} className="btn btn-primary">
-            {ctaButtonText}
-          </Link>
         </div>
       </div>
     </footer>

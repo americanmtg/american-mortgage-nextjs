@@ -19,8 +19,14 @@ export async function POST(request: NextRequest) {
     // Trim and normalize the reference ID
     const normalizedId = referenceId.trim()
 
-    const letter = await prisma.preapproval_letters.findUnique({
-      where: { reference_id: normalizedId },
+    // Case-insensitive search for the reference ID
+    const letter = await prisma.preapproval_letters.findFirst({
+      where: {
+        reference_id: {
+          equals: normalizedId,
+          mode: 'insensitive',
+        },
+      },
       include: {
         loan_officer: true,
       },

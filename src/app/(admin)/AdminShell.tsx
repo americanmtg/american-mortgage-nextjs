@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useSidebar, useAuth, useTheme } from './AdminContext';
-import { ReactNode, useEffect, useState, useRef } from 'react';
+import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 
 interface SiteSettings {
   logo?: {
@@ -118,6 +118,12 @@ const LogoutIcon = () => (
   </svg>
 );
 
+const DragHandleIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6h16.5" />
+  </svg>
+);
+
 interface MenuItem {
   label: string;
   href: string;
@@ -159,14 +165,126 @@ function Sidebar() {
   const { isCollapsed, toggleSidebar } = useSidebar();
   const { user } = useAuth();
   const pathname = usePathname();
-      
-  
+
+  // Drag and drop state
+  const [orderedItems, setOrderedItems] = useState<MenuItem[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const dragNodeRef = useRef<HTMLLIElement | null>(null);
 
   // Filter menu items based on user role
   const visibleMenuItems = menuItems.filter((item) => {
     if (!item.roles) return true;
     return user && item.roles.includes(user.role);
   });
+
+  // Load menu order from API
+  useEffect(() => {
+    async function loadMenuOrder() {
+      try {
+        const res = await fetch('/api/settings/admin-menu', { credentials: 'include' });
+        if (res.ok) {
+          const result = await res.json();
+          if (result.data?.menuOrder && result.data.menuOrder.length > 0) {
+            // Reorder items based on saved order
+            const savedOrder = result.data.menuOrder as string[];
+            const reordered = [...visibleMenuItems].sort((a, b) => {
+              const indexA = savedOrder.indexOf(a.href);
+              const indexB = savedOrder.indexOf(b.href);
+              if (indexA === -1 && indexB === -1) return 0;
+              if (indexA === -1) return 1;
+              if (indexB === -1) return -1;
+              return indexA - indexB;
+            });
+            setOrderedItems(reordered);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load menu order:', err);
+      }
+      setOrderedItems(visibleMenuItems);
+    }
+
+    if (visibleMenuItems.length > 0) {
+      loadMenuOrder();
+    }
+  }, [user]);
+
+  // Update ordered items when visible items change
+  useEffect(() => {
+    if (orderedItems.length === 0 && visibleMenuItems.length > 0) {
+      setOrderedItems(visibleMenuItems);
+    }
+  }, [visibleMenuItems, orderedItems.length]);
+
+  // Save menu order to API
+  const saveMenuOrder = useCallback(async (items: MenuItem[]) => {
+    setIsSaving(true);
+    try {
+      const menuOrder = items.map(item => item.href);
+      await fetch('/api/settings/admin-menu', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ menuOrder }),
+      });
+    } catch (err) {
+      console.error('Failed to save menu order:', err);
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
+
+  // Drag handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    dragNodeRef.current = e.currentTarget as HTMLLIElement;
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => {
+      if (dragNodeRef.current) {
+        dragNodeRef.current.style.opacity = '0.5';
+      }
+    }, 0);
+  };
+
+  const handleDragEnd = () => {
+    if (dragNodeRef.current) {
+      dragNodeRef.current.style.opacity = '1';
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    dragNodeRef.current = null;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex) return;
+
+    const newItems = [...orderedItems];
+    const [draggedItem] = newItems.splice(draggedIndex, 1);
+    newItems.splice(dropIndex, 0, draggedItem);
+    setOrderedItems(newItems);
+    saveMenuOrder(newItems);
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const displayItems = orderedItems.length > 0 ? orderedItems : visibleMenuItems;
+  const isAdmin = user?.role === 'admin';
 
   return (
     <aside
@@ -190,31 +308,79 @@ function Sidebar() {
         </Link>
       </div>
 
+      {/* Edit Mode Toggle (only for admins) */}
+      {isAdmin && !isCollapsed && (
+        <div className="px-3 pb-2">
+          <button
+            onClick={() => setIsEditMode(!isEditMode)}
+            className={`w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              isEditMode
+                ? 'bg-blue-100 text-blue-700'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {isEditMode ? (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Done Editing
+              </>
+            ) : (
+              <>
+                <DragHandleIcon />
+                Reorder Menu
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 overflow-y-auto">
         <ul className="space-y-1">
-          {visibleMenuItems.map((item) => {
+          {displayItems.map((item, index) => {
             const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
             const Icon = item.icon;
+            const isDragOver = dragOverIndex === index && draggedIndex !== index;
+
             return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  } ${isCollapsed ? 'justify-center' : ''}`}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <Icon />
-                  {!isCollapsed && <span className="font-medium">{item.label}</span>}
-                </Link>
+              <li
+                key={item.href}
+                draggable={isEditMode}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, index)}
+                className={`transition-all ${
+                  isEditMode ? 'cursor-grab active:cursor-grabbing' : ''
+                } ${isDragOver ? 'transform translate-y-1' : ''}`}
+              >
+                <div className={`relative ${isDragOver ? 'before:absolute before:top-0 before:left-0 before:right-0 before:h-0.5 before:bg-blue-500 before:-translate-y-1' : ''}`}>
+                  <Link
+                    href={isEditMode ? '#' : item.href}
+                    onClick={(e) => isEditMode && e.preventDefault()}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    } ${isCollapsed ? 'justify-center' : ''} ${isEditMode ? 'border-2 border-dashed border-gray-200' : ''}`}
+                    title={isCollapsed ? item.label : undefined}
+                  >
+                    {isEditMode && !isCollapsed && (
+                      <span className="text-gray-400">
+                        <DragHandleIcon />
+                      </span>
+                    )}
+                    <Icon />
+                    {!isCollapsed && <span className="font-medium">{item.label}</span>}
+                  </Link>
+                </div>
               </li>
             );
           })}
         </ul>
-
       </nav>
 
       {/* Collapse Toggle Button */}

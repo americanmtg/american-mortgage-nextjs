@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { getSiteSettings, getNavigation, getMediaUrl, getHeaderSettings } from '@/lib/data';
+import { getSiteSettings, getNavigation, getMediaUrl, getHeaderSettings, getMobileMenuButtons } from '@/lib/data';
 import MobileMenuButton from './MobileMenuButton';
 
 interface NavItem {
@@ -21,11 +21,75 @@ const defaultNavItems: NavItem[] = [
   { label: 'Reviews', url: '/reviews', showOnDesktop: true, showOnMobileBar: false, showInHamburger: true },
 ];
 
+function HeaderButtonIcon({ icon, color }: { icon: string; color: string }) {
+  if (!icon || icon === 'none') return null;
+  const iconClass = "w-5 h-5";
+  switch (icon) {
+    case 'phone':
+      return (
+        <svg className={iconClass} fill="none" stroke={color} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        </svg>
+      );
+    case 'arrow-right':
+      return (
+        <svg className={iconClass} fill="none" stroke={color} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+        </svg>
+      );
+    case 'home':
+      return (
+        <svg className={iconClass} fill="none" stroke={color} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+      );
+    case 'calculator':
+      return (
+        <svg className={iconClass} fill="none" stroke={color} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+      );
+    case 'document':
+      return (
+        <svg className={iconClass} fill="none" stroke={color} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      );
+    case 'user':
+      return (
+        <svg className={iconClass} fill="none" stroke={color} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      );
+    case 'chat':
+      return (
+        <svg className={iconClass} fill="none" stroke={color} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      );
+    case 'mail':
+      return (
+        <svg className={iconClass} fill="none" stroke={color} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      );
+    case 'calendar':
+      return (
+        <svg className={iconClass} fill="none" stroke={color} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 export default async function Header() {
-  const [settings, navigation, headerSettings] = await Promise.all([
+  const [settings, navigation, headerSettings, mobileButtons] = await Promise.all([
     getSiteSettings(),
     getNavigation(),
     getHeaderSettings(),
+    getMobileMenuButtons(),
   ]);
 
   // Use CMS menu if available, otherwise use defaults
@@ -46,6 +110,8 @@ export default async function Header() {
   const buttonUrl = headerSettings?.headerButtonUrl || '/apply';
   const buttonBgColor = headerSettings?.headerButtonBackgroundColor || '#d93c37';
   const buttonTextColor = headerSettings?.headerButtonTextColor || '#ffffff';
+  const buttonIcon = headerSettings?.headerButtonIcon || 'none';
+  const buttonBorderColor = headerSettings?.headerButtonBorderColor || buttonBgColor;
 
   // Header background settings
   const bgType = headerSettings?.backgroundType || 'solid';
@@ -201,8 +267,14 @@ export default async function Header() {
               </a>
               <Link
                 href={buttonUrl}
-                className="btn btn-primary px-6 py-2.5 rounded font-semibold transition-colors bg-[#141a47] hover:bg-[#d93c37] text-white"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded font-semibold transition-colors"
+                style={{
+                  backgroundColor: buttonBgColor,
+                  color: buttonTextColor,
+                  border: `2px solid ${buttonBorderColor}`,
+                }}
               >
+                <HeaderButtonIcon icon={buttonIcon} color={buttonTextColor} />
                 {buttonText}
               </Link>
             </div>
@@ -240,7 +312,7 @@ export default async function Header() {
                 >
                   Apply Now
                 </Link>
-                <MobileMenuButton navItems={navItems} phone={phone} buttonText={buttonText} buttonUrl={buttonUrl} buttonBgColor={buttonBgColor} buttonTextColor={buttonTextColor} />
+                <MobileMenuButton navItems={navItems} phone={phone} buttons={mobileButtons} buttonText={buttonText} buttonUrl={buttonUrl} buttonBgColor={buttonBgColor} buttonTextColor={buttonTextColor} />
               </div>
             </div>
             {/* Divider */}

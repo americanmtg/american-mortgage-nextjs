@@ -125,6 +125,8 @@ model header_settings {
   header_button_url              String?   @default("/apply") @db.VarChar
   header_button_background_color String?   @default("#d93c37") @db.VarChar
   header_button_text_color       String?   @default("#ffffff") @db.VarChar
+  header_button_icon             String?   @default("none") @db.VarChar(50)
+  header_button_border_color     String?   @default("#d93c37") @db.VarChar(20)
   updated_at                     DateTime? @default(now()) @db.Timestamptz(6)
   created_at                     DateTime? @default(now()) @db.Timestamptz(6)
   media_pattern_image            media?    @relation("header_settings_pattern_image_idTomedia", fields: [pattern_image_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
@@ -535,4 +537,28 @@ model verify_page_settings {
   default_contact_email String?   @default("verify@americanmtg.com") @db.VarChar(255)
   updated_at            DateTime? @default(now()) @db.Timestamptz(6)
   created_at            DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model mobile_menu_buttons {
+  id               Int       @id @default(autoincrement())
+  label            String    @db.VarChar(100)
+  url              String    @db.VarChar(500)
+  icon             String?   @db.VarChar(50)
+  button_type      String    @default("outline") @db.VarChar(20)
+  background_color String?   @default("#ffffff") @db.VarChar(20)
+  text_color       String?   @default("#0f2e71") @db.VarChar(20)
+  border_color     String?   @default("#0f2e71") @db.VarChar(20)
+  order            Int       @default(0)
+  is_active        Boolean   @default(true)
+  updated_at       DateTime  @default(now()) @db.Timestamptz(3)
+  created_at       DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([order])
+  @@index([is_active])
+}
+
+model admin_menu_settings {
+  id         Int       @id @default(autoincrement())
+  menu_order String[]  @default([])
+  updated_at DateTime  @default(now()) @db.Timestamptz(6)
 }
