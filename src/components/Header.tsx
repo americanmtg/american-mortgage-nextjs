@@ -104,6 +104,7 @@ export default async function Header() {
   const legalBannerShowMobile = settings?.legalBannerShowMobile ?? true;
   const logoUrl = getMediaUrl(settings?.logo);
   const logoHeight = settings?.logoHeight || 60;
+  const logoHeightMobile = settings?.logoHeightMobile || 30;
 
   // Header button settings
   const buttonText = headerSettings?.headerButtonText || 'Apply';
@@ -287,18 +288,18 @@ export default async function Header() {
               <Link
                 href="/"
                 className="flex-shrink-0 flex items-center"
-                style={{ height: '40px' }}
+                style={{ height: `${logoHeightMobile}px` }}
               >
                 {logoUrl && (
                   <Image
                     src={logoUrl}
                     alt="American Mortgage"
-                    width={133}
-                    height={40}
+                    width={Math.round(logoHeightMobile * 3.33)}
+                    height={logoHeightMobile}
                     priority
                     unoptimized
                     style={{
-                      height: '40px',
+                      height: `${logoHeightMobile}px`,
                       width: 'auto'
                     }}
                   />

@@ -12,6 +12,7 @@ export default async function Footer() {
   const email = settings?.email || 'hi@americanmortgage.com';
   const logoWhiteUrl = getMediaUrl(settings?.logoWhite);
   const logoWhiteHeight = settings?.logoWhiteHeight || 60;
+  const logoWhiteHeightMobile = settings?.logoWhiteHeightMobile || 30;
 
   // Use CMS footer data with fallback to defaults
   const tagline = footerData?.tagline || 'Making homeownership possible for everyone.';
@@ -66,7 +67,8 @@ export default async function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
           {/* Logo Column */}
           <div className="col-span-2 md:col-span-1">
-            <div style={{ minHeight: `${logoWhiteHeight}px` }} className="mb-4">
+            {/* Desktop logo */}
+            <div style={{ minHeight: `${logoWhiteHeight}px` }} className="mb-4 hidden md:block">
               {logoWhiteUrl && (
                 <Image
                   src={logoWhiteUrl}
@@ -74,6 +76,19 @@ export default async function Footer() {
                   width={Math.round(logoWhiteHeight * 3.33)}
                   height={logoWhiteHeight}
                   style={{ height: `${logoWhiteHeight}px`, width: 'auto' }}
+                  unoptimized
+                />
+              )}
+            </div>
+            {/* Mobile logo */}
+            <div style={{ minHeight: `${logoWhiteHeightMobile}px` }} className="mb-4 md:hidden">
+              {logoWhiteUrl && (
+                <Image
+                  src={logoWhiteUrl}
+                  alt="American Mortgage"
+                  width={Math.round(logoWhiteHeightMobile * 3.33)}
+                  height={logoWhiteHeightMobile}
+                  style={{ height: `${logoWhiteHeightMobile}px`, width: 'auto' }}
                   unoptimized
                 />
               )}

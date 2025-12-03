@@ -14,7 +14,7 @@ interface MobileButton {
   label: string;
   url: string;
   icon: string | null;
-  buttonType: string;
+  buttonType: string | null;
   backgroundColor: string | null;
   textColor: string | null;
   borderColor: string | null;

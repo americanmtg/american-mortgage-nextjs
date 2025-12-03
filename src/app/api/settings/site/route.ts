@@ -44,6 +44,8 @@ export async function GET() {
       } : null,
       logoHeight: settings.logo_height ? Number(settings.logo_height) : 40,
       logoWhiteHeight: settings.logo_white_height ? Number(settings.logo_white_height) : 40,
+      logoHeightMobile: settings.logo_height_mobile ? Number(settings.logo_height_mobile) : 30,
+      logoWhiteHeightMobile: settings.logo_white_height_mobile ? Number(settings.logo_white_height_mobile) : 30,
       socialLinks: {
         facebook: settings.social_links_facebook,
         twitter: settings.social_links_twitter,
@@ -79,6 +81,8 @@ export async function PUT(request: NextRequest) {
       logoWhiteId,
       logoHeight,
       logoWhiteHeight,
+      logoHeightMobile,
+      logoWhiteHeightMobile,
       socialLinks,
     } = body
 
@@ -102,6 +106,8 @@ export async function PUT(request: NextRequest) {
           ...(logoWhiteId !== undefined && { logo_white_id: logoWhiteId }),
           ...(logoHeight !== undefined && { logo_height: logoHeight }),
           ...(logoWhiteHeight !== undefined && { logo_white_height: logoWhiteHeight }),
+          ...(logoHeightMobile !== undefined && { logo_height_mobile: logoHeightMobile }),
+          ...(logoWhiteHeightMobile !== undefined && { logo_white_height_mobile: logoWhiteHeightMobile }),
           ...(socialLinks?.facebook !== undefined && { social_links_facebook: socialLinks.facebook }),
           ...(socialLinks?.twitter !== undefined && { social_links_twitter: socialLinks.twitter }),
           ...(socialLinks?.instagram !== undefined && { social_links_instagram: socialLinks.instagram }),
@@ -129,6 +135,8 @@ export async function PUT(request: NextRequest) {
           logo_white_id: logoWhiteId || null,
           logo_height: logoHeight || 40,
           logo_white_height: logoWhiteHeight || 40,
+          logo_height_mobile: logoHeightMobile || 30,
+          logo_white_height_mobile: logoWhiteHeightMobile || 30,
           social_links_facebook: socialLinks?.facebook || null,
           social_links_twitter: socialLinks?.twitter || null,
           social_links_instagram: socialLinks?.instagram || null,
@@ -154,6 +162,8 @@ export async function PUT(request: NextRequest) {
       legalBannerShowMobile: settings.legal_banner_show_mobile ?? true,
       logoHeight: settings.logo_height ? Number(settings.logo_height) : 40,
       logoWhiteHeight: settings.logo_white_height ? Number(settings.logo_white_height) : 40,
+      logoHeightMobile: settings.logo_height_mobile ? Number(settings.logo_height_mobile) : 30,
+      logoWhiteHeightMobile: settings.logo_white_height_mobile ? Number(settings.logo_white_height_mobile) : 30,
       socialLinks: {
         facebook: settings.social_links_facebook,
         twitter: settings.social_links_twitter,

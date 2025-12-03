@@ -23,6 +23,8 @@ interface SiteSettings {
   };
   logoHeight?: number;
   logoWhiteHeight?: number;
+  logoHeightMobile?: number;
+  logoWhiteHeightMobile?: number;
   socialLinks?: {
     facebook?: string;
     twitter?: string;
@@ -83,6 +85,8 @@ export default function SettingsPage() {
         companyName: settings.companyName || '',
         logoHeight: settings.logoHeight || 40,
         logoWhiteHeight: settings.logoWhiteHeight || 60,
+        logoHeightMobile: settings.logoHeightMobile || 30,
+        logoWhiteHeightMobile: settings.logoWhiteHeightMobile || 30,
         socialLinks: settings.socialLinks || {},
       };
 
@@ -418,6 +422,72 @@ export default function SettingsPage() {
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Logo size in the site footer (20-150px)
             </p>
+          </div>
+        </div>
+
+        {/* Mobile Logo Heights */}
+        <div className="mt-6">
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Mobile Logo Sizes</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Header Logo Height (Mobile) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Header Logo Height (Mobile)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={settings.logoHeightMobile ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSettings(prev => ({ ...prev, logoHeightMobile: val === '' ? undefined : parseInt(val) }));
+                  }}
+                  onBlur={(e) => {
+                    if (!e.target.value || parseInt(e.target.value) < 15) {
+                      setSettings(prev => ({ ...prev, logoHeightMobile: 30 }));
+                    }
+                  }}
+                  placeholder="30"
+                  className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                  min={15}
+                  max={60}
+                />
+                <span className="text-sm text-gray-500 dark:text-gray-400">px</span>
+              </div>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Logo size on mobile header (15-60px)
+              </p>
+            </div>
+
+            {/* Footer Logo Height (Mobile) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Footer Logo Height (Mobile)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={settings.logoWhiteHeightMobile ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSettings(prev => ({ ...prev, logoWhiteHeightMobile: val === '' ? undefined : parseInt(val) }));
+                  }}
+                  onBlur={(e) => {
+                    if (!e.target.value || parseInt(e.target.value) < 15) {
+                      setSettings(prev => ({ ...prev, logoWhiteHeightMobile: 30 }));
+                    }
+                  }}
+                  placeholder="30"
+                  className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                  min={15}
+                  max={80}
+                />
+                <span className="text-sm text-gray-500 dark:text-gray-400">px</span>
+              </div>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Logo size on mobile footer (15-80px)
+              </p>
+            </div>
           </div>
         </div>
       </div>

@@ -98,6 +98,8 @@ export async function getSiteSettings() {
       logoWhite: transformMedia(settings.media_site_settings_logo_white_idTomedia),
       logoHeight: settings.logo_height ? Number(settings.logo_height) : 40,
       logoWhiteHeight: settings.logo_white_height ? Number(settings.logo_white_height) : 40,
+      logoHeightMobile: settings.logo_height_mobile ? Number(settings.logo_height_mobile) : 30,
+      logoWhiteHeightMobile: settings.logo_white_height_mobile ? Number(settings.logo_white_height_mobile) : 30,
       socialLinks: {
         facebook: settings.social_links_facebook || null,
         twitter: settings.social_links_twitter || null,
@@ -600,5 +602,223 @@ export async function getMobileMenuButtons() {
   } catch (error) {
     console.error('Error fetching mobile menu buttons:', error)
     return []
+  }
+}
+
+// ==========================================
+// GIVEAWAYS
+// ==========================================
+
+// Get active giveaways (public) - excludes those with winners already selected
+export async function getActiveGiveaways() {
+  try {
+    const now = new Date()
+    const giveaways = await prisma.giveaways.findMany({
+      where: {
+        status: 'active',
+        start_date: { lte: now },
+        end_date: { gte: now },
+        winner_selected: false,
+      },
+      orderBy: [{ position: 'asc' }, { end_date: 'asc' }],
+      include: {
+        _count: {
+          select: {
+            entries: {
+              where: { is_valid: true },
+            },
+          },
+        },
+      },
+    })
+
+    return giveaways.map(g => ({
+      id: g.id,
+      title: g.title,
+      slug: g.slug,
+      description: g.description,
+      prizeTitle: g.prize_title,
+      prizeValue: g.prize_value ? Number(g.prize_value) : null,
+      prizeImage: g.prize_image,
+      startDate: g.start_date.toISOString(),
+      endDate: g.end_date.toISOString(),
+      // Additional data for card display
+      totalEntries: g._count.entries,
+      numWinners: g.num_winners || 1,
+      selectionMethod: g.alternate_selection === 'auto' ? 'Random' : 'Manual',
+      deliveryMethod: g.delivery_method === 'physical' ? 'Physical Mail' : 'Email',
+      // Button customization
+      buttonText: g.button_text || 'Enter Now',
+      buttonColor: g.button_color || '#2563eb',
+      buttonIcon: g.button_icon || 'ticket',
+    }))
+  } catch (error) {
+    console.error('Error fetching active giveaways:', error)
+    return []
+  }
+}
+
+// Get past giveaways with winners (public)
+export async function getPastGiveaways() {
+  try {
+    const giveaways = await prisma.giveaways.findMany({
+      where: {
+        winner_selected: true,
+        OR: [
+          { archived: false },
+          { archived: null },
+        ],
+      },
+      orderBy: [{ position: 'asc' }, { end_date: 'desc' }],
+      take: 10,
+      include: {
+        winners: {
+          include: {
+            entry: {
+              select: {
+                id: true,
+                first_name: true,
+                zip_code: true,
+              },
+            },
+          },
+          orderBy: [
+            { winner_type: 'asc' }, // primary first
+            { alternate_order: 'asc' },
+          ],
+        },
+        _count: {
+          select: {
+            entries: {
+              where: { is_valid: true },
+            },
+            winners: true,
+          },
+        },
+      },
+    })
+
+    // Get winner entry counts for all winners
+    const results = await Promise.all(giveaways.map(async (g) => {
+      // Process all winners with their entry counts
+      const winnersWithCounts = await Promise.all(g.winners.map(async (w) => {
+        const winnerEntry = await prisma.giveaway_entries.findUnique({
+          where: { id: w.entry.id },
+          select: { email: true },
+        })
+
+        let entryCount = 0
+        if (winnerEntry) {
+          entryCount = await prisma.giveaway_entries.count({
+            where: {
+              giveaway_id: g.id,
+              email: { equals: winnerEntry.email, mode: 'insensitive' },
+              is_valid: true,
+            },
+          })
+        }
+
+        return {
+          firstName: w.entry.first_name,
+          zipCode: w.entry.zip_code,
+          entryCount,
+          winnerType: w.winner_type,
+          selectionMethod: w.selection_method || 'manual',
+        }
+      }))
+
+      const primaryWinner = g.winners[0]
+
+      return {
+        id: g.id,
+        title: g.title,
+        slug: g.slug,
+        prizeTitle: g.prize_title,
+        prizeValue: g.prize_value ? Number(g.prize_value) : null,
+        prizeImage: g.prize_image,
+        startDate: g.start_date.toISOString(),
+        endDate: g.end_date.toISOString(),
+        totalEntries: g._count.entries,
+        totalWinners: g._count.winners,
+        winnerSelectedAt: primaryWinner?.created_at?.toISOString() || null,
+        selectionMethod: primaryWinner?.selection_method === 'automated' ? 'Automated' : 'Manual',
+        deliveryMethod: g.delivery_method === 'physical' ? 'Physical Mail' : 'Email',
+        winners: winnersWithCounts,
+        // Keep backward compatibility
+        winner: winnersWithCounts[0] || null,
+      }
+    }))
+
+    return results
+  } catch (error) {
+    console.error('Error fetching past giveaways:', error)
+    return []
+  }
+}
+
+// Get giveaway by slug (public)
+export async function getGiveawayBySlug(slug: string) {
+  try {
+    const giveaway = await prisma.giveaways.findUnique({
+      where: { slug },
+      include: {
+        _count: {
+          select: { entries: true }
+        },
+        sections: {
+          orderBy: { section_order: 'asc' }
+        }
+      }
+    })
+
+    if (!giveaway) return null
+
+    // Only return if active or ended (not draft/cancelled)
+    if (giveaway.status === 'draft' || giveaway.status === 'cancelled') {
+      return null
+    }
+
+    const now = new Date()
+    const isAcceptingEntries =
+      giveaway.status === 'active' &&
+      now >= giveaway.start_date &&
+      now <= giveaway.end_date
+
+    return {
+      id: giveaway.id,
+      title: giveaway.title,
+      slug: giveaway.slug,
+      description: giveaway.description,
+      rules: giveaway.rules,
+      prizeTitle: giveaway.prize_title,
+      prizeValue: giveaway.prize_value ? Number(giveaway.prize_value) : null,
+      prizeDescription: giveaway.prize_description,
+      prizeImage: giveaway.prize_image,
+      detailImage: giveaway.detail_image,
+      startDate: giveaway.start_date.toISOString(),
+      endDate: giveaway.end_date.toISOString(),
+      drawingDate: giveaway.drawing_date?.toISOString() || null,
+      status: giveaway.status,
+      restrictedStates: giveaway.restricted_states,
+      isAcceptingEntries,
+      totalEntries: giveaway._count.entries,
+      numWinners: giveaway.num_winners,
+      deliveryMethod: giveaway.delivery_method || 'email',
+      finePrint: giveaway.fine_print,
+      entryType: giveaway.entry_type || 'both',
+      primaryContact: giveaway.primary_contact || 'phone',
+      bonusEntriesEnabled: giveaway.bonus_entries_enabled || false,
+      bonusEntryCount: giveaway.bonus_entry_count || 1,
+      sections: giveaway.sections.map(s => ({
+        id: s.id,
+        title: s.title,
+        content: s.content,
+        order: s.section_order,
+        isExpanded: s.is_expanded,
+      })),
+    }
+  } catch (error) {
+    console.error('Error fetching giveaway:', error)
+    return null
   }
 }

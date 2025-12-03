@@ -87,6 +87,18 @@ const HomepageIcon = () => (
   </svg>
 );
 
+const GiveawaysIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18a1.5 1.5 0 001.5-1.5v-1.5a1.5 1.5 0 00-1.5-1.5h-18a1.5 1.5 0 00-1.5 1.5v1.5a1.5 1.5 0 001.5 1.5z" />
+  </svg>
+);
+
+const EntrantsIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+  </svg>
+);
+
 const ViewSiteIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -152,6 +164,8 @@ const menuItems: MenuItem[] = [
   { label: 'Routes', href: '/admin/routes', icon: RoutesIcon, roles: ['admin'] },
   { label: 'Footer', href: '/admin/footer', icon: FooterIcon, roles: ['admin'] },
   { label: 'Featured Loans', href: '/admin/loans', icon: LoansIcon, roles: ['admin'] },
+  { label: 'Giveaways', href: '/admin/giveaways', icon: GiveawaysIcon, roles: ['admin'] },
+  { label: 'Entrants', href: '/admin/entrants', icon: EntrantsIcon, roles: ['admin'] },
   { label: 'Pre-Approval Letters', href: '/admin/preapproval-letters', icon: PreapprovalIcon, roles: ['admin'] },
   { label: 'Homepage', href: '/admin/homepage', icon: HomepageIcon, roles: ['admin'] },
   { label: 'Header', href: '/admin/header', icon: HeaderIcon, roles: ['admin'] },

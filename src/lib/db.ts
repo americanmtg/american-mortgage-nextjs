@@ -1,8 +1,14 @@
 import { Pool } from 'pg';
 
-// Database connection pool
+// Database connection pool - uses same env var as Prisma for consistency
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL environment variable is required');
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URI || 'postgresql://amuser:AmMtg2025Secure@localhost:5432/american_mortgage',
+  connectionString,
 });
 
 export default pool;

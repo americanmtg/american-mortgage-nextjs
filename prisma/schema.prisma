@@ -18,19 +18,18 @@ model admin_users {
 }
 
 model blog_posts {
-  id                            Int                             @id @default(autoincrement())
-  title                         String                          @db.VarChar
-  slug                          String                          @unique(map: "blog_posts_slug_idx") @db.VarChar
-  excerpt                       String?                         @db.VarChar
-  featured_image_id             Int?
-  content                       Json?
-  published_at                  DateTime?                       @db.Timestamptz(3)
-  author                        String?                         @db.VarChar
-  updated_at                    DateTime                        @default(now()) @db.Timestamptz(3)
-  created_at                    DateTime                        @default(now()) @db.Timestamptz(3)
-  media                         media?                          @relation(fields: [featured_image_id], references: [id], onUpdate: NoAction, map: "blog_posts_featured_image_id_media_id_fk")
-  blog_posts_key_takeaways      blog_posts_key_takeaways[]
-  payload_locked_documents_rels payload_locked_documents_rels[]
+  id                       Int                        @id @default(autoincrement())
+  title                    String                     @db.VarChar
+  slug                     String                     @unique(map: "blog_posts_slug_idx") @db.VarChar
+  excerpt                  String?                    @db.VarChar
+  featured_image_id        Int?
+  content                  Json?
+  published_at             DateTime?                  @db.Timestamptz(3)
+  author                   String?                    @db.VarChar
+  updated_at               DateTime                   @default(now()) @db.Timestamptz(3)
+  created_at               DateTime                   @default(now()) @db.Timestamptz(3)
+  media                    media?                     @relation(fields: [featured_image_id], references: [id], onUpdate: NoAction, map: "blog_posts_featured_image_id_media_id_fk")
+  blog_posts_key_takeaways blog_posts_key_takeaways[]
 
   @@index([created_at])
   @@index([featured_image_id], map: "blog_posts_featured_image_idx")
@@ -61,7 +60,7 @@ model featured_loans {
   is_active               Boolean?                  @default(true)
   updated_at              DateTime                  @default(now()) @db.Timestamptz(3)
   created_at              DateTime                  @default(now()) @db.Timestamptz(3)
-  media                   media?                    @relation("featured_loans_image_idTomedia", fields: [image_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  media                   media?                    @relation("featured_loans_image_idTomedia", fields: [image_id], references: [id], onUpdate: NoAction)
   featured_loans_features featured_loans_features[]
 }
 
@@ -106,58 +105,59 @@ model footer_columns_links {
 }
 
 model header_settings {
-  id                             Int       @id @default(autoincrement())
-  background_type                String?   @default("solid") @db.VarChar
-  background_color               String?   @default("#ffffff") @db.VarChar
-  gradient_start_color           String?   @default("#ffffff") @db.VarChar
-  gradient_end_color             String?   @default("#f0f0f0") @db.VarChar
-  gradient_direction             String?   @default("to-right") @db.VarChar
-  pattern_type                   String?   @default("dots") @db.VarChar
-  pattern_color                  String?   @default("#e5e5e5") @db.VarChar
-  pattern_background_color       String?   @default("#ffffff") @db.VarChar
-  pattern_image_id               Int?
-  background_image_id            Int?
-  background_image_overlay       String?   @default("rgba(255,255,255,0.9)") @db.VarChar
-  background_video_id            Int?
-  background_video_url           String?   @db.VarChar
-  background_video_overlay       String?   @default("rgba(255,255,255,0.9)") @db.VarChar
-  header_button_text             String?   @default("Apply") @db.VarChar
-  header_button_url              String?   @default("/apply") @db.VarChar
-  header_button_background_color String?   @default("#d93c37") @db.VarChar
-  header_button_text_color       String?   @default("#ffffff") @db.VarChar
-  header_button_icon             String?   @default("none") @db.VarChar(50)
-  header_button_border_color     String?   @default("#d93c37") @db.VarChar(20)
-  updated_at                     DateTime? @default(now()) @db.Timestamptz(6)
-  created_at                     DateTime? @default(now()) @db.Timestamptz(6)
-  media_pattern_image            media?    @relation("header_settings_pattern_image_idTomedia", fields: [pattern_image_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  media_background_image         media?    @relation("header_settings_background_image_idTomedia", fields: [background_image_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  id                                               Int       @id @default(autoincrement())
+  background_type                                  String?   @default("solid") @db.VarChar
+  background_color                                 String?   @default("#ffffff") @db.VarChar
+  gradient_start_color                             String?   @default("#ffffff") @db.VarChar
+  gradient_end_color                               String?   @default("#f0f0f0") @db.VarChar
+  gradient_direction                               String?   @default("to-right") @db.VarChar
+  pattern_type                                     String?   @default("dots") @db.VarChar
+  pattern_color                                    String?   @default("#e5e5e5") @db.VarChar
+  pattern_background_color                         String?   @default("#ffffff") @db.VarChar
+  pattern_image_id                                 Int?
+  background_image_id                              Int?
+  background_image_overlay                         String?   @default("rgba(255,255,255,0.9)") @db.VarChar
+  background_video_id                              Int?
+  background_video_url                             String?   @db.VarChar
+  background_video_overlay                         String?   @default("rgba(255,255,255,0.9)") @db.VarChar
+  header_button_text                               String?   @default("Apply") @db.VarChar
+  header_button_url                                String?   @default("/apply") @db.VarChar
+  header_button_background_color                   String?   @default("#d93c37") @db.VarChar
+  header_button_text_color                         String?   @default("#ffffff") @db.VarChar
+  updated_at                                       DateTime? @default(now()) @db.Timestamptz(6)
+  created_at                                       DateTime? @default(now()) @db.Timestamptz(6)
+  header_button_icon                               String?   @default("none") @db.VarChar(50)
+  header_button_border_color                       String?   @default("#d93c37") @db.VarChar(20)
+  media_background_image                           media?    @relation("header_settings_background_image_idTomedia", fields: [background_image_id], references: [id], onUpdate: NoAction)
+  media_header_settings_background_video_idTomedia media?    @relation("header_settings_background_video_idTomedia", fields: [background_video_id], references: [id], onUpdate: NoAction)
+  media_pattern_image                              media?    @relation("header_settings_pattern_image_idTomedia", fields: [pattern_image_id], references: [id], onUpdate: NoAction)
 }
 
 model media {
-  id                                               Int                             @id @default(autoincrement())
-  alt                                              String                          @db.VarChar
-  updated_at                                       DateTime                        @default(now()) @db.Timestamptz(3)
-  created_at                                       DateTime                        @default(now()) @db.Timestamptz(3)
-  url                                              String?                         @db.VarChar
-  thumbnail_u_r_l                                  String?                         @db.VarChar
-  filename                                         String?                         @unique(map: "media_filename_idx") @db.VarChar
-  mime_type                                        String?                         @db.VarChar
-  filesize                                         Decimal?                        @db.Decimal
-  width                                            Decimal?                        @db.Decimal
-  height                                           Decimal?                        @db.Decimal
-  focal_x                                          Decimal?                        @db.Decimal
-  focal_y                                          Decimal?                        @db.Decimal
-  label                                            String?                         @db.VarChar
-  blog_posts                                       blog_posts[]
-  featured_loans                                   featured_loans[]                @relation("featured_loans_image_idTomedia")
-  header_settings_pattern_image                    header_settings[]               @relation("header_settings_pattern_image_idTomedia")
-  header_settings_background_image                 header_settings[]               @relation("header_settings_background_image_idTomedia")
-  pages                                            pages[]                         @relation("pages_hero_image_idTomedia")
-  payload_locked_documents_rels                    payload_locked_documents_rels[]
-  seo_settings_seo_settings_favicon_idTomedia      seo_settings[]                  @relation("seo_settings_favicon_idTomedia")
-  seo_settings_seo_settings_og_image_idTomedia     seo_settings[]                  @relation("seo_settings_og_image_idTomedia")
-  site_settings_site_settings_logo_idTomedia       site_settings[]                 @relation("site_settings_logo_idTomedia")
-  site_settings_site_settings_logo_white_idTomedia site_settings[]                 @relation("site_settings_logo_white_idTomedia")
+  id                                                         Int               @id @default(autoincrement())
+  alt                                                        String            @db.VarChar
+  updated_at                                                 DateTime          @default(now()) @db.Timestamptz(3)
+  created_at                                                 DateTime          @default(now()) @db.Timestamptz(3)
+  url                                                        String?           @db.VarChar
+  thumbnail_u_r_l                                            String?           @db.VarChar
+  filename                                                   String?           @unique(map: "media_filename_idx") @db.VarChar
+  mime_type                                                  String?           @db.VarChar
+  filesize                                                   Decimal?          @db.Decimal
+  width                                                      Decimal?          @db.Decimal
+  height                                                     Decimal?          @db.Decimal
+  focal_x                                                    Decimal?          @db.Decimal
+  focal_y                                                    Decimal?          @db.Decimal
+  label                                                      String?           @db.VarChar
+  blog_posts                                                 blog_posts[]
+  featured_loans                                             featured_loans[]  @relation("featured_loans_image_idTomedia")
+  header_settings_background_image                           header_settings[] @relation("header_settings_background_image_idTomedia")
+  header_settings_header_settings_background_video_idTomedia header_settings[] @relation("header_settings_background_video_idTomedia")
+  header_settings_pattern_image                              header_settings[] @relation("header_settings_pattern_image_idTomedia")
+  pages                                                      pages[]           @relation("pages_hero_image_idTomedia")
+  seo_settings_seo_settings_favicon_idTomedia                seo_settings[]    @relation("seo_settings_favicon_idTomedia")
+  seo_settings_seo_settings_og_image_idTomedia               seo_settings[]    @relation("seo_settings_og_image_idTomedia")
+  site_settings_site_settings_logo_idTomedia                 site_settings[]   @relation("site_settings_logo_idTomedia")
+  site_settings_site_settings_logo_white_idTomedia           site_settings[]   @relation("site_settings_logo_white_idTomedia")
 
   @@index([created_at])
   @@index([updated_at])
@@ -209,110 +209,26 @@ model navigation_main_menu_children {
 }
 
 model pages {
-  id                            Int                             @id @default(autoincrement())
-  title                         String                          @db.VarChar
-  slug                          String                          @unique(map: "pages_slug_idx") @db.VarChar
-  content                       Json?
-  meta_title                    String?                         @db.VarChar
-  meta_description              String?                         @db.VarChar
-  updated_at                    DateTime                        @default(now()) @db.Timestamptz(3)
-  created_at                    DateTime                        @default(now()) @db.Timestamptz(3)
-  template                      String?                         @default("default") @db.VarChar
-  subtitle                      String?                         @db.VarChar
-  hero_image_id                 Int?
-  sidebar_title                 String?                         @db.VarChar
-  sidebar_content               Json?
-  cta_title                     String?                         @db.VarChar
-  cta_button_text               String?                         @db.VarChar
-  cta_button_link               String?                         @db.VarChar
-  media                         media?                          @relation("pages_hero_image_idTomedia", fields: [hero_image_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  payload_locked_documents_rels payload_locked_documents_rels[]
+  id               Int      @id @default(autoincrement())
+  title            String   @db.VarChar
+  slug             String   @unique(map: "pages_slug_idx") @db.VarChar
+  content          Json?
+  meta_title       String?  @db.VarChar
+  meta_description String?  @db.VarChar
+  updated_at       DateTime @default(now()) @db.Timestamptz(3)
+  created_at       DateTime @default(now()) @db.Timestamptz(3)
+  template         String?  @default("default") @db.VarChar
+  subtitle         String?  @db.VarChar
+  hero_image_id    Int?
+  sidebar_title    String?  @db.VarChar
+  sidebar_content  Json?
+  cta_title        String?  @db.VarChar
+  cta_button_text  String?  @db.VarChar
+  cta_button_link  String?  @db.VarChar
+  media            media?   @relation("pages_hero_image_idTomedia", fields: [hero_image_id], references: [id], onUpdate: NoAction)
 
   @@index([created_at])
   @@index([updated_at])
-}
-
-model payload_kv {
-  id   Int    @id @default(autoincrement())
-  key  String @unique(map: "payload_kv_key_idx") @db.VarChar
-  data Json
-}
-
-model payload_locked_documents {
-  id                            Int                             @id @default(autoincrement())
-  global_slug                   String?                         @db.VarChar
-  updated_at                    DateTime                        @default(now()) @db.Timestamptz(3)
-  created_at                    DateTime                        @default(now()) @db.Timestamptz(3)
-  payload_locked_documents_rels payload_locked_documents_rels[]
-
-  @@index([created_at])
-  @@index([global_slug])
-  @@index([updated_at])
-}
-
-model payload_locked_documents_rels {
-  id                       Int                      @id @default(autoincrement())
-  order                    Int?
-  parent_id                Int
-  path                     String                   @db.VarChar
-  users_id                 Int?
-  media_id                 Int?
-  blog_posts_id            Int?
-  pages_id                 Int?
-  routes_id                Int?
-  featured_loans_id        Int?
-  blog_posts               blog_posts?              @relation(fields: [blog_posts_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_locked_documents_rels_blog_posts_fk")
-  media                    media?                   @relation(fields: [media_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_locked_documents_rels_media_fk")
-  pages                    pages?                   @relation(fields: [pages_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_locked_documents_rels_pages_fk")
-  payload_locked_documents payload_locked_documents @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_locked_documents_rels_parent_fk")
-  users                    users?                   @relation(fields: [users_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_locked_documents_rels_users_fk")
-
-  @@index([blog_posts_id])
-  @@index([media_id])
-  @@index([order])
-  @@index([pages_id])
-  @@index([parent_id], map: "payload_locked_documents_rels_parent_idx")
-  @@index([path])
-  @@index([users_id])
-}
-
-model payload_migrations {
-  id         Int      @id @default(autoincrement())
-  name       String?  @db.VarChar
-  batch      Decimal? @db.Decimal
-  updated_at DateTime @default(now()) @db.Timestamptz(3)
-  created_at DateTime @default(now()) @db.Timestamptz(3)
-
-  @@index([created_at])
-  @@index([updated_at])
-}
-
-model payload_preferences {
-  id                       Int                        @id @default(autoincrement())
-  key                      String?                    @db.VarChar
-  value                    Json?
-  updated_at               DateTime                   @default(now()) @db.Timestamptz(3)
-  created_at               DateTime                   @default(now()) @db.Timestamptz(3)
-  payload_preferences_rels payload_preferences_rels[]
-
-  @@index([created_at])
-  @@index([key])
-  @@index([updated_at])
-}
-
-model payload_preferences_rels {
-  id                  Int                 @id @default(autoincrement())
-  order               Int?
-  parent_id           Int
-  path                String              @db.VarChar
-  users_id            Int?
-  payload_preferences payload_preferences @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_preferences_rels_parent_fk")
-  users               users?              @relation(fields: [users_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "payload_preferences_rels_users_fk")
-
-  @@index([order])
-  @@index([parent_id], map: "payload_preferences_rels_parent_idx")
-  @@index([path])
-  @@index([users_id])
 }
 
 model routes {
@@ -353,19 +269,21 @@ model site_settings {
   email                                    String?   @db.VarChar
   address                                  String?   @db.VarChar
   legal_banner                             String?   @db.VarChar
-  legal_banner_mobile                      String?   @db.VarChar
-  legal_banner_show_desktop                Boolean?  @default(true)
-  legal_banner_show_mobile                 Boolean?  @default(true)
   updated_at                               DateTime? @db.Timestamptz(3)
   created_at                               DateTime? @db.Timestamptz(3)
   logo_height                              Decimal?  @default(40) @db.Decimal
   logo_white_height                        Decimal?  @default(40) @db.Decimal
+  logo_height_mobile                       Decimal?  @default(30) @db.Decimal
+  logo_white_height_mobile                 Decimal?  @default(30) @db.Decimal
   company_name                             String?   @db.VarChar
   social_links_facebook                    String?   @db.VarChar
   social_links_twitter                     String?   @db.VarChar
   social_links_instagram                   String?   @db.VarChar
   social_links_linkedin                    String?   @db.VarChar
   social_links_youtube                     String?   @db.VarChar
+  legal_banner_mobile                      String?   @db.VarChar
+  legal_banner_show_desktop                Boolean?  @default(true)
+  legal_banner_show_mobile                 Boolean?  @default(true)
   media_site_settings_logo_idTomedia       media?    @relation("site_settings_logo_idTomedia", fields: [logo_id], references: [id], onUpdate: NoAction, map: "site_settings_logo_id_media_id_fk")
   media_site_settings_logo_white_idTomedia media?    @relation("site_settings_logo_white_idTomedia", fields: [logo_white_id], references: [id], onUpdate: NoAction, map: "site_settings_logo_white_id_media_id_fk")
 
@@ -374,94 +292,374 @@ model site_settings {
 }
 
 model homepage_settings {
-  id                                 Int       @id @default(autoincrement())
-  updated_at                         DateTime? @db.Timestamptz(3)
-  created_at                         DateTime? @db.Timestamptz(3)
-
-  // Hero Section
-  hero_eyebrow                       String?   @db.VarChar
-  hero_headline_line1                String?   @db.VarChar
-  hero_headline_line2                String?   @db.VarChar
-  hero_button_text                   String?   @db.VarChar
-  hero_button_url                    String?   @db.VarChar
-  hero_reassurance_time              String?   @db.VarChar
-  hero_reassurance_text              String?   @db.VarChar
-  hero_rating_percent                String?   @db.VarChar
-  hero_rating_text                   String?   @db.VarChar
-
-  // Featured Loans Section
-  featured_loans_eyebrow             String?   @db.VarChar
-  featured_loans_headline_line1      String?   @db.VarChar
-  featured_loans_headline_line2      String?   @db.VarChar
-
-  // Down Payment Assistance Card
-  dpa_enabled                        Boolean?  @default(true)
-  dpa_headline                       String?   @db.VarChar
-  dpa_feature1                       String?   @db.VarChar
-  dpa_feature2                       String?   @db.VarChar
-  dpa_feature3                       String?   @db.VarChar
-  dpa_button_text                    String?   @db.VarChar
-  dpa_button_url                     String?   @db.VarChar
-  dpa_reassurance_text               String?   @db.VarChar
-
-  // Tools & Calculators Section
-  tools_eyebrow                      String?   @db.VarChar
-  tools_headline_line1               String?   @db.VarChar
-  tools_headline_line2               String?   @db.VarChar
-  tools_card1_title                  String?   @db.VarChar
-  tools_card1_description            String?   @db.VarChar
-  tools_card1_icon                   String?   @db.VarChar
-  tools_card1_url                    String?   @db.VarChar
-  tools_card2_title                  String?   @db.VarChar
-  tools_card2_description            String?   @db.VarChar
-  tools_card2_icon                   String?   @db.VarChar
-  tools_card2_url                    String?   @db.VarChar
-  tools_card3_title                  String?   @db.VarChar
-  tools_card3_description            String?   @db.VarChar
-  tools_card3_icon                   String?   @db.VarChar
-  tools_card3_url                    String?   @db.VarChar
-  tools_cards                        Json?     @db.JsonB
-
-  // More Loan Options Card
-  more_loans_enabled                 Boolean?  @default(true)
-  more_loans_text                    String?   @db.VarChar
-  more_loans_link_text               String?   @db.VarChar
-  more_loans_link_url                String?   @db.VarChar
-
-  // Latest Articles Section
-  articles_title                     String?   @db.VarChar
-  articles_subtitle                  String?   @db.VarChar
+  id                            Int       @id @default(autoincrement())
+  updated_at                    DateTime? @db.Timestamptz(6)
+  created_at                    DateTime? @default(now()) @db.Timestamptz(6)
+  hero_eyebrow                  String?   @db.VarChar
+  hero_headline_line1           String?   @db.VarChar
+  hero_headline_line2           String?   @db.VarChar
+  hero_button_text              String?   @db.VarChar
+  hero_button_url               String?   @db.VarChar
+  hero_reassurance_time         String?   @db.VarChar
+  hero_reassurance_text         String?   @db.VarChar
+  hero_rating_percent           String?   @db.VarChar
+  hero_rating_text              String?   @db.VarChar
+  featured_loans_eyebrow        String?   @db.VarChar
+  featured_loans_headline_line1 String?   @db.VarChar
+  featured_loans_headline_line2 String?   @db.VarChar
+  dpa_enabled                   Boolean?  @default(true)
+  dpa_headline                  String?   @db.VarChar
+  dpa_feature1                  String?   @db.VarChar
+  dpa_feature2                  String?   @db.VarChar
+  dpa_feature3                  String?   @db.VarChar
+  dpa_button_text               String?   @db.VarChar
+  dpa_button_url                String?   @db.VarChar
+  dpa_reassurance_text          String?   @db.VarChar
+  tools_eyebrow                 String?   @db.VarChar
+  tools_headline_line1          String?   @db.VarChar
+  tools_headline_line2          String?   @db.VarChar
+  tools_card1_title             String?   @db.VarChar
+  tools_card1_description       String?   @db.VarChar
+  tools_card1_icon              String?   @db.VarChar
+  tools_card1_url               String?   @db.VarChar
+  tools_card2_title             String?   @db.VarChar
+  tools_card2_description       String?   @db.VarChar
+  tools_card2_icon              String?   @db.VarChar
+  tools_card2_url               String?   @db.VarChar
+  tools_card3_title             String?   @db.VarChar
+  tools_card3_description       String?   @db.VarChar
+  tools_card3_icon              String?   @db.VarChar
+  tools_card3_url               String?   @db.VarChar
+  more_loans_enabled            Boolean?  @default(true)
+  more_loans_text               String?   @db.VarChar
+  more_loans_link_text          String?   @db.VarChar
+  more_loans_link_url           String?   @db.VarChar
+  articles_title                String?   @db.VarChar
+  articles_subtitle             String?   @db.VarChar
+  tools_cards                   Json?
 }
 
-model users {
-  id                            Int                             @id @default(autoincrement())
-  updated_at                    DateTime                        @default(now()) @db.Timestamptz(3)
-  created_at                    DateTime                        @default(now()) @db.Timestamptz(3)
-  email                         String                          @unique(map: "users_email_idx") @db.VarChar
-  reset_password_token          String?                         @db.VarChar
-  reset_password_expiration     DateTime?                       @db.Timestamptz(3)
-  salt                          String?                         @db.VarChar
-  hash                          String?                         @db.VarChar
-  login_attempts                Decimal?                        @default(0) @db.Decimal
-  lock_until                    DateTime?                       @db.Timestamptz(3)
-  payload_locked_documents_rels payload_locked_documents_rels[]
-  payload_preferences_rels      payload_preferences_rels[]
-  users_sessions                users_sessions[]
+model loan_officers {
+  id                  Int                   @id @default(autoincrement())
+  name                String                @db.VarChar(255)
+  phone               String                @db.VarChar(50)
+  email               String                @db.VarChar(255)
+  is_active           Boolean?              @default(true)
+  updated_at          DateTime?             @default(now()) @db.Timestamptz(3)
+  created_at          DateTime?             @default(now()) @db.Timestamptz(3)
+  preapproval_letters preapproval_letters[]
 
+  @@index([is_active])
   @@index([created_at])
-  @@index([updated_at])
 }
 
-model users_sessions {
-  order      Int       @map("_order")
-  parent_id  Int       @map("_parent_id")
-  id         String    @id @db.VarChar
-  created_at DateTime? @db.Timestamptz(3)
-  expires_at DateTime  @db.Timestamptz(3)
-  users      users     @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "users_sessions_parent_id_fk")
+model preapproval_letters {
+  id              Int                      @id @default(autoincrement())
+  borrower_name   String                   @db.VarChar(255)
+  letter_date     DateTime                 @db.Date
+  reference_id    String                   @unique @db.VarChar(100)
+  status          enum_preapproval_status? @default(authentic)
+  notes           String?
+  updated_at      DateTime?                @default(now()) @db.Timestamptz(3)
+  created_at      DateTime?                @default(now()) @db.Timestamptz(3)
+  loan_officer_id Int?
+  loan_officer    loan_officers?           @relation(fields: [loan_officer_id], references: [id], onUpdate: NoAction)
 
-  @@index([order], map: "users_sessions_order_idx")
-  @@index([parent_id], map: "users_sessions_parent_id_idx")
+  @@index([reference_id])
+  @@index([status])
+  @@index([loan_officer_id])
+  @@index([created_at])
+}
+
+model verify_page_settings {
+  id                    Int       @id @default(1)
+  page_title            String?   @default("Pre-Approval Letter Verification") @db.VarChar(255)
+  page_subtitle         String?   @default("Enter the reference ID from your pre-approval letter to verify its authenticity.")
+  success_title         String?   @default("Verified - Authentic Letter") @db.VarChar(255)
+  success_message       String?   @default("This pre-approval letter is authentic.")
+  fail_title            String?   @default("Verification Failed") @db.VarChar(255)
+  fail_message          String?   @default("We could not verify this reference ID. The letter may be invalid, expired, or entered incorrectly.")
+  default_contact_name  String?   @default("American Mortgage") @db.VarChar(255)
+  default_contact_phone String?   @default("(XXX) XXX-XXXX") @db.VarChar(50)
+  default_contact_email String?   @default("verify@americanmtg.com") @db.VarChar(255)
+  updated_at            DateTime? @default(now()) @db.Timestamptz(6)
+  created_at            DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model mobile_menu_buttons {
+  id               Int       @id @default(autoincrement())
+  label            String    @db.VarChar(100)
+  url              String    @db.VarChar(500)
+  icon             String?   @db.VarChar(50)
+  button_type      String?   @default("outline") @db.VarChar(20)
+  background_color String?   @default("#ffffff") @db.VarChar(20)
+  text_color       String?   @default("#0f2e71") @db.VarChar(20)
+  border_color     String?   @default("#0f2e71") @db.VarChar(20)
+  order            Int?      @default(0)
+  is_active        Boolean?  @default(true)
+  updated_at       DateTime? @default(now()) @db.Timestamptz(3)
+  created_at       DateTime? @default(now()) @db.Timestamptz(3)
+
+  @@index([order])
+  @@index([is_active])
+}
+
+model admin_menu_settings {
+  id         Int       @id @default(autoincrement())
+  menu_order String[]  @default([])
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model giveaways {
+  id                    Int                     @id @default(autoincrement())
+  title                 String                  @db.VarChar(255)
+  slug                  String                  @unique @db.VarChar(255)
+  description           String?
+  rules                 String?
+  prize_title           String                  @db.VarChar(255)
+  prize_value           Decimal?                @db.Decimal(10, 2)
+  prize_description     String?
+  prize_image           String?                 @db.VarChar(512)
+  detail_image          String?                 @db.VarChar(512)
+  start_date            DateTime                @db.Timestamptz(6)
+  end_date              DateTime                @db.Timestamptz(6)
+  drawing_date          DateTime?               @db.Timestamptz(6)
+  num_winners           Int?                    @default(1)
+  alternate_winners     Int?                    @default(3)
+  alternate_selection   String?                 @default("auto") @db.VarChar(20)
+  require_w9            Boolean?                @default(false)
+  w9_threshold          Decimal?                @default(600.00) @db.Decimal(10, 2)
+  restricted_states     String[]                @default([])
+  status                String?                 @default("draft") @db.VarChar(20)
+  winner_selected       Boolean?                @default(false)
+  created_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  entry_type            String?                 @default("both") @db.VarChar(20)
+  primary_contact       String?                 @default("phone") @db.VarChar(20)
+  bonus_entries_enabled Boolean?                @default(false)
+  bonus_entry_count     Int?                    @default(1)
+  require_id            Boolean?                @default(false)
+  deleted_at            DateTime?               @db.Timestamptz(6)
+  archived              Boolean?                @default(false)
+  button_text           String?                 @default("Enter Now") @db.VarChar(50)
+  button_color          String?                 @default("#2563eb") @db.VarChar(20)
+  button_icon           String?                 @default("ticket") @db.VarChar(50)
+  delivery_method       String?                 @default("email") @db.VarChar(20)
+  position              Int?                    @default(0)
+  fine_print            String?
+  referral_enabled      Boolean?                @default(false)
+  referral_bonus_entries Int?                   @default(1)
+  max_referral_bonus    Int?                    @default(10)
+  max_referrals_per_ip  Int?                    @default(3)
+  entries               giveaway_entries[]
+  unsubscribes          giveaway_unsubscribes[]
+  winners               giveaway_winners[]
+  notifications         notifications_log[]
+  scheduled_jobs        scheduled_jobs[]
+  sections              giveaway_sections[]
+  referrals             giveaway_referrals[]
+
+  @@index([slug], map: "idx_giveaways_slug")
+  @@index([status], map: "idx_giveaways_status")
+}
+
+model giveaway_sections {
+  id            Int       @id @default(autoincrement())
+  giveaway_id   Int
+  title         String    @db.VarChar(255)
+  content       String?
+  section_order Int?      @default(0)
+  is_expanded   Boolean?  @default(false)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+  giveaway      giveaways @relation(fields: [giveaway_id], references: [id], onDelete: Cascade)
+
+  @@index([giveaway_id], map: "idx_giveaway_sections_giveaway_id")
+  @@index([section_order], map: "idx_giveaway_sections_order")
+}
+
+model giveaway_entries {
+  id                  Int                      @id @default(autoincrement())
+  giveaway_id         Int
+  email               String                   @db.VarChar(255)
+  phone               String                   @db.VarChar(20)
+  first_name          String                   @db.VarChar(100)
+  last_name           String                   @db.VarChar(100)
+  state               String                   @db.VarChar(2)
+  zip_code            String?                  @db.VarChar(10)
+  sms_opt_in          Boolean?                 @default(false)
+  email_opt_in        Boolean?                 @default(true)
+  agreed_to_rules     Boolean?                 @default(true)
+  ip_address          String?                  @db.VarChar(45)
+  user_agent          String?
+  entry_source        String?                  @db.VarChar(50)
+  referral_code       String?                  @db.VarChar(50)
+  is_valid            Boolean?                 @default(true)
+  invalidation_reason String?
+  created_at          DateTime?                @default(now()) @db.Timestamptz(6)
+  entry_count         Int?                     @default(1)
+  bonus_claimed       Boolean?                 @default(false)
+  secondary_contact   String?                  @db.VarChar(255)
+  giveaway            giveaways                @relation(fields: [giveaway_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  winner              giveaway_winners[]
+  notifications       notifications_log[]
+  referrals_as_referrer giveaway_referrals[]   @relation("referrer_entry")
+  referrals_as_referred giveaway_referrals[]   @relation("referred_entry")
+
+  @@unique([giveaway_id, email])
+  @@unique([giveaway_id, phone])
+  @@index([email], map: "idx_giveaway_entries_email")
+  @@index([giveaway_id], map: "idx_giveaway_entries_giveaway_id")
+  @@index([phone], map: "idx_giveaway_entries_phone")
+}
+
+model giveaway_referrals {
+  id                    Int               @id @default(autoincrement())
+  giveaway_id           Int
+  referrer_entry_id     Int
+  referral_code         String            @unique @db.VarChar(20)
+  referred_entry_id     Int?
+  referred_ip           String?           @db.VarChar(45)
+  bonus_entries_awarded Int?              @default(0)
+  created_at            DateTime?         @default(now()) @db.Timestamptz(6)
+  converted_at          DateTime?         @db.Timestamptz(6)
+  giveaway              giveaways         @relation(fields: [giveaway_id], references: [id], onDelete: Cascade)
+  referrer_entry        giveaway_entries  @relation("referrer_entry", fields: [referrer_entry_id], references: [id], onDelete: Cascade)
+  referred_entry        giveaway_entries? @relation("referred_entry", fields: [referred_entry_id], references: [id], onDelete: SetNull)
+
+  @@index([referral_code], map: "idx_referral_code")
+  @@index([referrer_entry_id], map: "idx_referrer_entry")
+  @@index([giveaway_id], map: "idx_giveaway_referrals_giveaway")
+}
+
+model giveaway_winners {
+  id                  Int                 @id @default(autoincrement())
+  giveaway_id         Int
+  entry_id            Int
+  winner_type         String?             @default("primary") @db.VarChar(20)
+  alternate_order     Int?
+  status              String?             @default("pending") @db.VarChar(20)
+  notified_at         DateTime?           @db.Timestamptz(6)
+  notification_method String?             @db.VarChar(20)
+  claim_deadline      DateTime?           @db.Timestamptz(6)
+  claimed_at          DateTime?           @db.Timestamptz(6)
+  claim_token         String?             @unique @db.VarChar(100)
+  created_at          DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?           @default(now()) @db.Timestamptz(6)
+  selection_method    String?             @default("manual") @db.VarChar(20)
+  entry               giveaway_entries    @relation(fields: [entry_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  giveaway            giveaways           @relation(fields: [giveaway_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  notifications       notifications_log[]
+  prize_claim         prize_claims[]
+
+  @@index([giveaway_id], map: "idx_giveaway_winners_giveaway_id")
+  @@index([status], map: "idx_giveaway_winners_status")
+}
+
+model prize_claims {
+  id                 Int              @id @default(autoincrement())
+  winner_id          Int
+  legal_name         String?          @db.VarChar(255)
+  address_line1      String?          @db.VarChar(255)
+  address_line2      String?          @db.VarChar(255)
+  city               String?          @db.VarChar(100)
+  state              String?          @db.VarChar(2)
+  zip_code           String?          @db.VarChar(10)
+  w9_document        String?          @db.VarChar(512)
+  id_document        String?          @db.VarChar(512)
+  verified           Boolean?         @default(false)
+  verified_by        Int?
+  verified_at        DateTime?        @db.Timestamptz(6)
+  verification_notes String?
+  fulfillment_status String?          @default("pending") @db.VarChar(20)
+  fulfillment_notes  String?
+  tracking_number    String?          @db.VarChar(100)
+  fulfilled_at       DateTime?        @db.Timestamptz(6)
+  created_at         DateTime?        @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?        @default(now()) @db.Timestamptz(6)
+  winner             giveaway_winners @relation(fields: [winner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model notifications_log {
+  id                Int               @id @default(autoincrement())
+  giveaway_id       Int?
+  entry_id          Int?
+  winner_id         Int?
+  notification_type String            @db.VarChar(50)
+  channel           String            @db.VarChar(20)
+  recipient         String            @db.VarChar(255)
+  subject           String?           @db.VarChar(255)
+  body              String?
+  template_id       String?           @db.VarChar(100)
+  status            String?           @default("pending") @db.VarChar(20)
+  external_id       String?           @db.VarChar(255)
+  error_message     String?
+  attempts          Int?              @default(0)
+  max_attempts      Int?              @default(3)
+  next_retry_at     DateTime?         @db.Timestamptz(6)
+  sent_at           DateTime?         @db.Timestamptz(6)
+  delivered_at      DateTime?         @db.Timestamptz(6)
+  created_at        DateTime?         @default(now()) @db.Timestamptz(6)
+  entry             giveaway_entries? @relation(fields: [entry_id], references: [id], onUpdate: NoAction)
+  giveaway          giveaways?        @relation(fields: [giveaway_id], references: [id], onUpdate: NoAction)
+  winner            giveaway_winners? @relation(fields: [winner_id], references: [id], onUpdate: NoAction)
+
+  @@index([giveaway_id], map: "idx_notifications_log_giveaway_id")
+  @@index([status], map: "idx_notifications_log_status")
+}
+
+model giveaway_unsubscribes {
+  id               Int        @id @default(autoincrement())
+  email            String?    @db.VarChar(255)
+  phone            String?    @db.VarChar(20)
+  unsubscribe_type String     @db.VarChar(20)
+  giveaway_id      Int?
+  channel          String     @db.VarChar(20)
+  reason           String?
+  created_at       DateTime?  @default(now()) @db.Timestamptz(6)
+  giveaway         giveaways? @relation(fields: [giveaway_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([email, giveaway_id, channel])
+  @@unique([phone, giveaway_id, channel])
+}
+
+model scheduled_jobs {
+  id            Int        @id @default(autoincrement())
+  job_type      String     @db.VarChar(50)
+  giveaway_id   Int?
+  scheduled_for DateTime   @db.Timestamptz(6)
+  status        String?    @default("pending") @db.VarChar(20)
+  started_at    DateTime?  @db.Timestamptz(6)
+  completed_at  DateTime?  @db.Timestamptz(6)
+  result        Json?
+  error_message String?
+  created_at    DateTime?  @default(now()) @db.Timestamptz(6)
+  giveaway      giveaways? @relation(fields: [giveaway_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([scheduled_for], map: "idx_scheduled_jobs_scheduled_for")
+  @@index([status], map: "idx_scheduled_jobs_status")
+}
+
+model rate_limits {
+  id              Int       @id @default(autoincrement())
+  identifier      String    @db.VarChar(255)
+  identifier_type String    @db.VarChar(20)
+  action          String    @db.VarChar(50)
+  count           Int?      @default(1)
+  window_start    DateTime? @default(now()) @db.Timestamptz(6)
+  window_end      DateTime  @db.Timestamptz(6)
+
+  @@unique([identifier, identifier_type, action, window_start])
+  @@index([identifier, identifier_type, action], map: "idx_rate_limits_identifier")
+}
+
+model giveaway_notification_subscribers {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique @db.VarChar(255)
+  subscribed_at DateTime? @default(now()) @db.Timestamptz(6)
+  is_active     Boolean?  @default(true)
+
+  @@index([email], map: "idx_giveaway_notif_subs_email")
 }
 
 enum enum_featured_loans_icon {
@@ -490,75 +688,4 @@ enum enum_preapproval_status {
   authentic
   invalid
   expired
-}
-
-model loan_officers {
-  id                  Int                   @id @default(autoincrement())
-  name                String                @db.VarChar(255)
-  phone               String                @db.VarChar(50)
-  email               String                @db.VarChar(255)
-  is_active           Boolean               @default(true)
-  updated_at          DateTime              @default(now()) @db.Timestamptz(3)
-  created_at          DateTime              @default(now()) @db.Timestamptz(3)
-  preapproval_letters preapproval_letters[]
-
-  @@index([is_active])
-  @@index([created_at])
-}
-
-model preapproval_letters {
-  id              Int                      @id @default(autoincrement())
-  borrower_name   String                   @db.VarChar(255)
-  letter_date     DateTime                 @db.Date
-  reference_id    String                   @unique @db.VarChar(100)
-  status          enum_preapproval_status  @default(authentic)
-  loan_officer_id Int?
-  notes           String?                  @db.Text
-  updated_at      DateTime                 @default(now()) @db.Timestamptz(3)
-  created_at      DateTime                 @default(now()) @db.Timestamptz(3)
-  loan_officer    loan_officers?           @relation(fields: [loan_officer_id], references: [id], onDelete: SetNull)
-
-  @@index([reference_id])
-  @@index([status])
-  @@index([loan_officer_id])
-  @@index([created_at])
-}
-
-model verify_page_settings {
-  id                    Int       @id @default(1)
-  page_title            String?   @default("Pre-Approval Letter Verification") @db.VarChar(255)
-  page_subtitle         String?   @default("Enter the reference ID from your pre-approval letter to verify its authenticity.")
-  success_title         String?   @default("Verified - Authentic Letter") @db.VarChar(255)
-  success_message       String?   @default("This pre-approval letter is authentic.")
-  fail_title            String?   @default("Verification Failed") @db.VarChar(255)
-  fail_message          String?   @default("We could not verify this reference ID. The letter may be invalid, expired, or entered incorrectly.")
-  default_contact_name  String?   @default("American Mortgage") @db.VarChar(255)
-  default_contact_phone String?   @default("(XXX) XXX-XXXX") @db.VarChar(50)
-  default_contact_email String?   @default("verify@americanmtg.com") @db.VarChar(255)
-  updated_at            DateTime? @default(now()) @db.Timestamptz(6)
-  created_at            DateTime? @default(now()) @db.Timestamptz(6)
-}
-
-model mobile_menu_buttons {
-  id               Int       @id @default(autoincrement())
-  label            String    @db.VarChar(100)
-  url              String    @db.VarChar(500)
-  icon             String?   @db.VarChar(50)
-  button_type      String    @default("outline") @db.VarChar(20)
-  background_color String?   @default("#ffffff") @db.VarChar(20)
-  text_color       String?   @default("#0f2e71") @db.VarChar(20)
-  border_color     String?   @default("#0f2e71") @db.VarChar(20)
-  order            Int       @default(0)
-  is_active        Boolean   @default(true)
-  updated_at       DateTime  @default(now()) @db.Timestamptz(3)
-  created_at       DateTime  @default(now()) @db.Timestamptz(3)
-
-  @@index([order])
-  @@index([is_active])
-}
-
-model admin_menu_settings {
-  id         Int       @id @default(autoincrement())
-  menu_order String[]  @default([])
-  updated_at DateTime  @default(now()) @db.Timestamptz(6)
 }
