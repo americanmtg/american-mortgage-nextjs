@@ -22,6 +22,9 @@ export async function GET(
       where: { id: postId },
       include: {
         media: true,
+        author_ref: {
+          include: { photo: true },
+        },
         blog_posts_key_takeaways: {
           orderBy: { order: 'asc' },
         },
@@ -46,6 +49,16 @@ export async function GET(
       content: post.content,
       publishedAt: post.published_at,
       author: post.author,
+      authorId: post.author_id,
+      authorRef: post.author_ref ? {
+        id: post.author_ref.id,
+        name: post.author_ref.name,
+        email: post.author_ref.email,
+        phone: post.author_ref.phone,
+        nmlsId: post.author_ref.nmls_id,
+        bio: post.author_ref.bio,
+        photoUrl: post.author_ref.photo?.url || null,
+      } : null,
       keyTakeaways: post.blog_posts_key_takeaways.map(kt => ({
         id: kt.id,
         takeaway: kt.takeaway,
@@ -81,6 +94,7 @@ export async function PATCH(
       excerpt,
       content,
       author,
+      authorId,
       featuredImageId,
       keyTakeaways,
       publishedAt,
@@ -108,12 +122,16 @@ export async function PATCH(
         ...(excerpt !== undefined && { excerpt }),
         ...(content !== undefined && { content }),
         ...(author !== undefined && { author }),
+        ...(authorId !== undefined && { author_id: authorId || null }),
         ...(featuredImageId !== undefined && { featured_image_id: featuredImageId }),
         ...(publishedAt !== undefined && { published_at: new Date(publishedAt) }),
         updated_at: new Date(),
       },
       include: {
         media: true,
+        author_ref: {
+          include: { photo: true },
+        },
         blog_posts_key_takeaways: {
           orderBy: { order: 'asc' },
         },
@@ -144,6 +162,9 @@ export async function PATCH(
         where: { id: postId },
         include: {
           media: true,
+          author_ref: {
+            include: { photo: true },
+          },
           blog_posts_key_takeaways: {
             orderBy: { order: 'asc' },
           },
@@ -163,6 +184,16 @@ export async function PATCH(
         content: updatedPost!.content,
         publishedAt: updatedPost!.published_at,
         author: updatedPost!.author,
+        authorId: updatedPost!.author_id,
+        authorRef: updatedPost!.author_ref ? {
+          id: updatedPost!.author_ref.id,
+          name: updatedPost!.author_ref.name,
+          email: updatedPost!.author_ref.email,
+          phone: updatedPost!.author_ref.phone,
+          nmlsId: updatedPost!.author_ref.nmls_id,
+          bio: updatedPost!.author_ref.bio,
+          photoUrl: updatedPost!.author_ref.photo?.url || null,
+        } : null,
         keyTakeaways: updatedPost!.blog_posts_key_takeaways.map(kt => ({
           id: kt.id,
           takeaway: kt.takeaway,
@@ -184,6 +215,16 @@ export async function PATCH(
       content: post.content,
       publishedAt: post.published_at,
       author: post.author,
+      authorId: post.author_id,
+      authorRef: post.author_ref ? {
+        id: post.author_ref.id,
+        name: post.author_ref.name,
+        email: post.author_ref.email,
+        phone: post.author_ref.phone,
+        nmlsId: post.author_ref.nmls_id,
+        bio: post.author_ref.bio,
+        photoUrl: post.author_ref.photo?.url || null,
+      } : null,
       keyTakeaways: post.blog_posts_key_takeaways.map(kt => ({
         id: kt.id,
         takeaway: kt.takeaway,

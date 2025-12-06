@@ -99,6 +99,18 @@ const EntrantsIcon = () => (
   </svg>
 );
 
+const LegalIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.97zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.97z" />
+  </svg>
+);
+
+const LenderLogosIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+  </svg>
+);
+
 const ViewSiteIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -155,6 +167,12 @@ const HeaderIcon = () => (
   </svg>
 );
 
+const AboutIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+  </svg>
+);
+
 const menuItems: MenuItem[] = [
   { label: 'Dashboard', href: '/admin', icon: DashboardIcon },
   { label: 'Menu', href: '/admin/menu', icon: MenuIcon, roles: ['admin'] },
@@ -164,12 +182,16 @@ const menuItems: MenuItem[] = [
   { label: 'Routes', href: '/admin/routes', icon: RoutesIcon, roles: ['admin'] },
   { label: 'Footer', href: '/admin/footer', icon: FooterIcon, roles: ['admin'] },
   { label: 'Featured Loans', href: '/admin/loans', icon: LoansIcon, roles: ['admin'] },
+  { label: 'Loan Programs', href: '/admin/loan-programs', icon: LoansIcon, roles: ['admin'] },
   { label: 'Giveaways', href: '/admin/giveaways', icon: GiveawaysIcon, roles: ['admin'] },
   { label: 'Entrants', href: '/admin/entrants', icon: EntrantsIcon, roles: ['admin'] },
   { label: 'Pre-Approval Letters', href: '/admin/preapproval-letters', icon: PreapprovalIcon, roles: ['admin'] },
   { label: 'Homepage', href: '/admin/homepage', icon: HomepageIcon, roles: ['admin'] },
+  { label: 'About Page', href: '/admin/about', icon: AboutIcon, roles: ['admin'] },
+  { label: 'Lender Logos', href: '/admin/lender-logos', icon: LenderLogosIcon, roles: ['admin'] },
   { label: 'Header', href: '/admin/header', icon: HeaderIcon, roles: ['admin'] },
   { label: 'SEO', href: '/admin/seo', icon: SeoIcon, roles: ['admin'] },
+  { label: 'Legal', href: '/admin/legal', icon: LegalIcon, roles: ['admin'] },
   { label: 'View Site', href: '/admin/view-site', icon: ViewSiteIcon },
   { label: 'Settings', href: '/admin/settings', icon: SettingsIcon, roles: ['admin'] },
   { label: 'Users', href: '/admin/users', icon: UsersIcon, roles: ['admin'] },

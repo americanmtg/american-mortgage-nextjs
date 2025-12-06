@@ -26,6 +26,14 @@ export async function GET() {
         reassuranceText: settings.hero_reassurance_text,
         ratingPercent: settings.hero_rating_percent,
         ratingText: settings.hero_rating_text,
+        widgetType: settings.hero_widget_type || 'badge',
+        widgetEnabled: settings.hero_widget_enabled ?? true,
+        photo1Url: settings.hero_photo1_url,
+        photo2Url: settings.hero_photo2_url,
+        photo3Url: settings.hero_photo3_url,
+        badgeText: settings.hero_badge_text || 'Same-Day Pre-Approvals',
+        badgeSubtext: settings.hero_badge_subtext || 'Fast & hassle-free',
+        mobileGradientEnabled: settings.hero_mobile_gradient_enabled ?? true,
       },
       // Featured Loans Section
       featuredLoans: {
@@ -43,6 +51,7 @@ export async function GET() {
         buttonText: settings.dpa_button_text,
         buttonUrl: settings.dpa_button_url,
         reassuranceText: settings.dpa_reassurance_text,
+        backgroundStyle: settings.dpa_background_style || 'blue',
       },
       // Tools & Calculators Section
       tools: {
@@ -77,12 +86,15 @@ export async function GET() {
         text: settings.more_loans_text,
         linkText: settings.more_loans_link_text,
         linkUrl: settings.more_loans_link_url,
+        style: settings.more_loans_style || 'red',
       },
       // Latest Articles Section
       articles: {
         title: settings.articles_title,
         subtitle: settings.articles_subtitle,
       },
+      // Why Choose Us Section
+      whyChooseUs: settings.why_choose_us || null,
       updatedAt: settings.updated_at,
     })
   } catch (error) {
@@ -98,7 +110,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { hero, featuredLoans, dpa, tools, moreLoans, articles } = body
+    const { hero, featuredLoans, whyChooseUs, dpa, tools, moreLoans, articles } = body
 
     // Find existing settings or create new
     const existing = await prisma.homepage_settings.findFirst()
@@ -114,11 +126,22 @@ export async function PUT(request: NextRequest) {
       ...(hero?.reassuranceText !== undefined && { hero_reassurance_text: hero.reassuranceText }),
       ...(hero?.ratingPercent !== undefined && { hero_rating_percent: hero.ratingPercent }),
       ...(hero?.ratingText !== undefined && { hero_rating_text: hero.ratingText }),
+      ...(hero?.widgetType !== undefined && { hero_widget_type: hero.widgetType }),
+      ...(hero?.widgetEnabled !== undefined && { hero_widget_enabled: hero.widgetEnabled }),
+      ...(hero?.photo1Url !== undefined && { hero_photo1_url: hero.photo1Url }),
+      ...(hero?.photo2Url !== undefined && { hero_photo2_url: hero.photo2Url }),
+      ...(hero?.photo3Url !== undefined && { hero_photo3_url: hero.photo3Url }),
+      ...(hero?.badgeText !== undefined && { hero_badge_text: hero.badgeText }),
+      ...(hero?.badgeSubtext !== undefined && { hero_badge_subtext: hero.badgeSubtext }),
+      ...(hero?.mobileGradientEnabled !== undefined && { hero_mobile_gradient_enabled: hero.mobileGradientEnabled }),
 
       // Featured Loans Section
       ...(featuredLoans?.eyebrow !== undefined && { featured_loans_eyebrow: featuredLoans.eyebrow }),
       ...(featuredLoans?.headlineLine1 !== undefined && { featured_loans_headline_line1: featuredLoans.headlineLine1 }),
       ...(featuredLoans?.headlineLine2 !== undefined && { featured_loans_headline_line2: featuredLoans.headlineLine2 }),
+
+      // Why Choose Us Section (stored as JSON)
+      ...(whyChooseUs !== undefined && { why_choose_us: whyChooseUs }),
 
       // Down Payment Assistance Card
       ...(dpa?.enabled !== undefined && { dpa_enabled: dpa.enabled }),
@@ -129,6 +152,7 @@ export async function PUT(request: NextRequest) {
       ...(dpa?.buttonText !== undefined && { dpa_button_text: dpa.buttonText }),
       ...(dpa?.buttonUrl !== undefined && { dpa_button_url: dpa.buttonUrl }),
       ...(dpa?.reassuranceText !== undefined && { dpa_reassurance_text: dpa.reassuranceText }),
+      ...(dpa?.backgroundStyle !== undefined && { dpa_background_style: dpa.backgroundStyle }),
 
       // Tools & Calculators Section
       ...(tools?.eyebrow !== undefined && { tools_eyebrow: tools.eyebrow }),
@@ -142,6 +166,7 @@ export async function PUT(request: NextRequest) {
       ...(moreLoans?.text !== undefined && { more_loans_text: moreLoans.text }),
       ...(moreLoans?.linkText !== undefined && { more_loans_link_text: moreLoans.linkText }),
       ...(moreLoans?.linkUrl !== undefined && { more_loans_link_url: moreLoans.linkUrl }),
+      ...(moreLoans?.style !== undefined && { more_loans_style: moreLoans.style }),
 
       // Latest Articles Section
       ...(articles?.title !== undefined && { articles_title: articles.title }),
@@ -177,6 +202,14 @@ export async function PUT(request: NextRequest) {
         reassuranceText: settings.hero_reassurance_text,
         ratingPercent: settings.hero_rating_percent,
         ratingText: settings.hero_rating_text,
+        widgetType: settings.hero_widget_type || 'badge',
+        widgetEnabled: settings.hero_widget_enabled ?? true,
+        photo1Url: settings.hero_photo1_url,
+        photo2Url: settings.hero_photo2_url,
+        photo3Url: settings.hero_photo3_url,
+        badgeText: settings.hero_badge_text || 'Same-Day Pre-Approvals',
+        badgeSubtext: settings.hero_badge_subtext || 'Fast & hassle-free',
+        mobileGradientEnabled: settings.hero_mobile_gradient_enabled ?? true,
       },
       featuredLoans: {
         eyebrow: settings.featured_loans_eyebrow,
@@ -192,6 +225,7 @@ export async function PUT(request: NextRequest) {
         buttonText: settings.dpa_button_text,
         buttonUrl: settings.dpa_button_url,
         reassuranceText: settings.dpa_reassurance_text,
+        backgroundStyle: settings.dpa_background_style || 'blue',
       },
       tools: {
         eyebrow: settings.tools_eyebrow,
@@ -223,11 +257,13 @@ export async function PUT(request: NextRequest) {
         text: settings.more_loans_text,
         linkText: settings.more_loans_link_text,
         linkUrl: settings.more_loans_link_url,
+        style: settings.more_loans_style || 'red',
       },
       articles: {
         title: settings.articles_title,
         subtitle: settings.articles_subtitle,
       },
+      whyChooseUs: settings.why_choose_us || null,
       updatedAt: settings.updated_at,
     })
   } catch (error) {

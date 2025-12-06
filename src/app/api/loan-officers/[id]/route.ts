@@ -20,6 +20,7 @@ export async function GET(
 
     const officer = await prisma.loan_officers.findUnique({
       where: { id: officerId },
+      include: { photo: true },
     })
 
     if (!officer) {
@@ -29,8 +30,11 @@ export async function GET(
     return successResponse({
       id: officer.id,
       name: officer.name,
+      nmlsId: officer.nmls_id,
       phone: officer.phone,
       email: officer.email,
+      photoId: officer.photo_id,
+      photoUrl: officer.photo?.url || null,
       isActive: officer.is_active,
       updatedAt: officer.updated_at,
       createdAt: officer.created_at,
@@ -66,24 +70,30 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, phone, email, isActive } = body
+    const { name, nmlsId, phone, email, isActive, photoId } = body
 
     const officer = await prisma.loan_officers.update({
       where: { id: officerId },
       data: {
         ...(name !== undefined && { name }),
+        ...(nmlsId !== undefined && { nmls_id: nmlsId || null }),
         ...(phone !== undefined && { phone }),
         ...(email !== undefined && { email }),
         ...(isActive !== undefined && { is_active: isActive }),
+        ...(photoId !== undefined && { photo_id: photoId || null }),
         updated_at: new Date(),
       },
+      include: { photo: true },
     })
 
     return successResponse({
       id: officer.id,
       name: officer.name,
+      nmlsId: officer.nmls_id,
       phone: officer.phone,
       email: officer.email,
+      photoId: officer.photo_id,
+      photoUrl: officer.photo?.url || null,
       isActive: officer.is_active,
       updatedAt: officer.updated_at,
       createdAt: officer.created_at,

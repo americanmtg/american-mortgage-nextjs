@@ -28,7 +28,11 @@ export async function POST(request: NextRequest) {
         },
       },
       include: {
-        loan_officer: true,
+        loan_officer: {
+          include: {
+            photo: true,
+          },
+        },
       },
     })
 
@@ -40,6 +44,18 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Helper to build loan officer object
+    const buildLoanOfficer = () => {
+      if (!letter.loan_officer) return null
+      return {
+        name: letter.loan_officer.name,
+        nmlsId: letter.loan_officer.nmls_id,
+        phone: letter.loan_officer.phone,
+        email: letter.loan_officer.email,
+        photoUrl: letter.loan_officer.photo?.url || null,
+      }
+    }
+
     // Only return verification success if status is 'authentic'
     if (letter.status === 'authentic') {
       return NextResponse.json({
@@ -49,11 +65,7 @@ export async function POST(request: NextRequest) {
         data: {
           borrowerName: letter.borrower_name,
           letterDate: letter.letter_date,
-          loanOfficer: letter.loan_officer ? {
-            name: letter.loan_officer.name,
-            phone: letter.loan_officer.phone,
-            email: letter.loan_officer.email,
-          } : null,
+          loanOfficer: buildLoanOfficer(),
         },
       })
     }
@@ -64,11 +76,7 @@ export async function POST(request: NextRequest) {
       verified: false,
       message: letter.status,
       data: {
-        loanOfficer: letter.loan_officer ? {
-          name: letter.loan_officer.name,
-          phone: letter.loan_officer.phone,
-          email: letter.loan_officer.email,
-        } : null,
+        loanOfficer: buildLoanOfficer(),
       },
     })
   } catch (error) {

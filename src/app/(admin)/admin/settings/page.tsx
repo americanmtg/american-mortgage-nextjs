@@ -32,6 +32,8 @@ interface SiteSettings {
     linkedin?: string;
     youtube?: string;
   };
+  snowEffectEnabled?: boolean;
+  santaIconEnabled?: boolean;
 }
 
 export default function SettingsPage() {
@@ -88,6 +90,8 @@ export default function SettingsPage() {
         logoHeightMobile: settings.logoHeightMobile || 30,
         logoWhiteHeightMobile: settings.logoWhiteHeightMobile || 30,
         socialLinks: settings.socialLinks || {},
+        snowEffectEnabled: settings.snowEffectEnabled ?? false,
+        santaIconEnabled: settings.santaIconEnabled ?? false,
       };
 
       // Include logo IDs for the new API
@@ -680,6 +684,56 @@ export default function SettingsPage() {
               className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Seasonal Effects */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Seasonal Effects</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Enable festive visual effects for your website.
+        </p>
+
+        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">❄️</div>
+            <div>
+              <h3 className="font-medium text-gray-900 dark:text-white">Snow Effect</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Subtle falling snow animation in the hero section
+              </p>
+            </div>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.snowEffectEnabled ?? false}
+              onChange={(e) => setSettings(prev => ({ ...prev, snowEffectEnabled: e.target.checked }))}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+
+        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">🎅</div>
+            <div>
+              <h3 className="font-medium text-gray-900 dark:text-white">Santa & Reindeer Icon</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Show Santa sleigh icon next to "Get Started Now" button
+              </p>
+            </div>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.santaIconEnabled ?? false}
+              onChange={(e) => setSettings(prev => ({ ...prev, santaIconEnabled: e.target.checked }))}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+          </label>
         </div>
       </div>
 

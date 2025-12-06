@@ -26,8 +26,10 @@ export async function GET() {
       failTitle: settings.fail_title,
       failMessage: settings.fail_message,
       defaultContactName: settings.default_contact_name,
+      defaultContactNmlsId: settings.default_contact_nmls_id,
       defaultContactPhone: settings.default_contact_phone,
       defaultContactEmail: settings.default_contact_email,
+      defaultContactPhoto: settings.default_contact_photo,
     })
   } catch (error) {
     console.error('Error fetching verify page settings:', error)
@@ -50,8 +52,10 @@ export async function PUT(request: NextRequest) {
       failTitle,
       failMessage,
       defaultContactName,
+      defaultContactNmlsId,
       defaultContactPhone,
       defaultContactEmail,
+      defaultContactPhoto,
     } = body
 
     const settings = await prisma.verify_page_settings.upsert({
@@ -64,8 +68,10 @@ export async function PUT(request: NextRequest) {
         ...(failTitle !== undefined && { fail_title: failTitle }),
         ...(failMessage !== undefined && { fail_message: failMessage }),
         ...(defaultContactName !== undefined && { default_contact_name: defaultContactName }),
+        ...(defaultContactNmlsId !== undefined && { default_contact_nmls_id: defaultContactNmlsId || null }),
         ...(defaultContactPhone !== undefined && { default_contact_phone: defaultContactPhone }),
         ...(defaultContactEmail !== undefined && { default_contact_email: defaultContactEmail }),
+        ...(defaultContactPhoto !== undefined && { default_contact_photo: defaultContactPhoto }),
         updated_at: new Date(),
       },
       create: {
@@ -77,8 +83,10 @@ export async function PUT(request: NextRequest) {
         fail_title: failTitle,
         fail_message: failMessage,
         default_contact_name: defaultContactName,
+        default_contact_nmls_id: defaultContactNmlsId,
         default_contact_phone: defaultContactPhone,
         default_contact_email: defaultContactEmail,
+        default_contact_photo: defaultContactPhoto,
       },
     })
 
@@ -90,8 +98,10 @@ export async function PUT(request: NextRequest) {
       failTitle: settings.fail_title,
       failMessage: settings.fail_message,
       defaultContactName: settings.default_contact_name,
+      defaultContactNmlsId: settings.default_contact_nmls_id,
       defaultContactPhone: settings.default_contact_phone,
       defaultContactEmail: settings.default_contact_email,
+      defaultContactPhoto: settings.default_contact_photo,
     })
   } catch (error) {
     console.error('Error updating verify page settings:', error)

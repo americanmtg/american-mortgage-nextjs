@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../../AdminContext';
 
 interface LoanOfficer {
   id: number;
   name: string;
+  nmlsId: string | null;
   phone: string;
   email: string;
+  photoId: number | null;
+  photoUrl: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -34,8 +37,10 @@ interface VerifyPageSettings {
   failTitle: string;
   failMessage: string;
   defaultContactName: string;
+  defaultContactNmlsId: string | null;
   defaultContactPhone: string;
   defaultContactEmail: string;
+  defaultContactPhoto: string | null;
 }
 
 type TabType = 'letters' | 'officers' | 'settings';
@@ -53,9 +58,13 @@ export default function PreapprovalLettersPage() {
     failTitle: 'Verification Failed',
     failMessage: 'We could not verify this reference ID. The letter may be invalid, expired, or entered incorrectly.',
     defaultContactName: 'American Mortgage',
+    defaultContactNmlsId: null,
     defaultContactPhone: '(XXX) XXX-XXXX',
     defaultContactEmail: 'verify@americanmtg.com',
+    defaultContactPhoto: null,
   });
+  const [uploadingDefaultPhoto, setUploadingDefaultPhoto] = useState(false);
+  const defaultPhotoInputRef = useRef<HTMLInputElement>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
@@ -84,12 +93,17 @@ export default function PreapprovalLettersPage() {
   const [editingOfficer, setEditingOfficer] = useState<LoanOfficer | null>(null);
   const [officerFormData, setOfficerFormData] = useState({
     name: '',
+    nmlsId: '',
     phone: '',
     email: '',
+    photoId: null as number | null,
+    photoUrl: null as string | null,
     isActive: true,
   });
   const [officerSaving, setOfficerSaving] = useState(false);
   const [deleteOfficerConfirm, setDeleteOfficerConfirm] = useState<number | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [error, setError] = useState('');
 
@@ -303,8 +317,10 @@ export default function PreapprovalLettersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: officerFormData.name,
+          nmlsId: officerFormData.nmlsId || null,
           phone: officerFormData.phone,
           email: officerFormData.email,
+          photoId: officerFormData.photoId,
           isActive: officerFormData.isActive,
         }),
       });
@@ -348,8 +364,11 @@ export default function PreapprovalLettersPage() {
     setEditingOfficer(null);
     setOfficerFormData({
       name: '',
+      nmlsId: '',
       phone: '',
       email: '',
+      photoId: null,
+      photoUrl: null,
       isActive: true,
     });
     setShowOfficerModal(true);
@@ -360,8 +379,11 @@ export default function PreapprovalLettersPage() {
     setEditingOfficer(officer);
     setOfficerFormData({
       name: officer.name,
+      nmlsId: officer.nmlsId || '',
       phone: officer.phone,
       email: officer.email,
+      photoId: officer.photoId,
+      photoUrl: officer.photoUrl,
       isActive: officer.isActive,
     });
     setShowOfficerModal(true);
@@ -373,11 +395,94 @@ export default function PreapprovalLettersPage() {
     setEditingOfficer(null);
     setOfficerFormData({
       name: '',
+      nmlsId: '',
       phone: '',
       email: '',
+      photoId: null,
+      photoUrl: null,
       isActive: true,
     });
     setError('');
+  };
+
+  // Photo upload handler
+  const uploadPhoto = async (file: File) => {
+    setUploadingPhoto(true);
+    setError('');
+
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+      formDataUpload.append('alt', `Photo of ${officerFormData.name || 'Loan Officer'}`);
+
+      const res = await fetch('/api/media', {
+        method: 'POST',
+        credentials: 'include',
+        body: formDataUpload,
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        const data = result.data;
+        setOfficerFormData((prev) => ({
+          ...prev,
+          photoId: data.id,
+          photoUrl: data.url,
+        }));
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (err) {
+      setError('Failed to upload photo. Make sure you are logged in.');
+    } finally {
+      setUploadingPhoto(false);
+      if (photoInputRef.current) {
+        photoInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removePhoto = () => {
+    setOfficerFormData((prev) => ({ ...prev, photoId: null, photoUrl: null }));
+  };
+
+  // Default contact photo upload handler
+  const uploadDefaultPhoto = async (file: File) => {
+    setUploadingDefaultPhoto(true);
+
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+      formDataUpload.append('alt', `Photo of ${settings.defaultContactName || 'Default Contact'}`);
+
+      const res = await fetch('/api/media', {
+        method: 'POST',
+        credentials: 'include',
+        body: formDataUpload,
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        const data = result.data;
+        setSettings((prev) => ({
+          ...prev,
+          defaultContactPhoto: data.url,
+        }));
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (err) {
+      setError('Failed to upload photo. Make sure you are logged in.');
+    } finally {
+      setUploadingDefaultPhoto(false);
+      if (defaultPhotoInputRef.current) {
+        defaultPhotoInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removeDefaultPhoto = () => {
+    setSettings((prev) => ({ ...prev, defaultContactPhoto: null }));
   };
 
   // Helper functions
@@ -697,9 +802,22 @@ export default function PreapprovalLettersPage() {
                   {officers.map((officer) => (
                     <tr key={officer.id} className={isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}>
                       <td className="px-6 py-4">
-                        <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {officer.name}
-                        </p>
+                        <div className="flex items-center gap-3">
+                          {officer.photoUrl ? (
+                            <img
+                              src={officer.photoUrl}
+                              alt={officer.name}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-[#181F53] rounded-full flex items-center justify-center text-white text-sm font-semibold">
+                              {officer.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            </div>
+                          )}
+                          <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {officer.name}
+                          </p>
+                        </div>
                       </td>
                       <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                         {officer.phone}
@@ -916,7 +1034,85 @@ export default function PreapprovalLettersPage() {
               <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                 This contact info is shown when no loan officer is assigned to a letter.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Photo Upload */}
+              <div className="mb-4">
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Contact Photo
+                </label>
+                <div className="flex items-center gap-4">
+                  {/* Photo Preview */}
+                  <div className="flex-shrink-0">
+                    {settings.defaultContactPhoto ? (
+                      <div className="relative">
+                        <img
+                          src={settings.defaultContactPhoto}
+                          alt="Default contact photo"
+                          className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeDefaultPhoto}
+                          className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                          title="Remove photo"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-gray-400">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  {/* Upload Button */}
+                  <div className="flex-1">
+                    <input
+                      ref={defaultPhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadDefaultPhoto(file);
+                      }}
+                      className="hidden"
+                      id="default-photo-upload"
+                    />
+                    <label
+                      htmlFor="default-photo-upload"
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
+                        isDark
+                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      } ${uploadingDefaultPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {uploadingDefaultPhoto ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {settings.defaultContactPhoto ? 'Change Photo' : 'Upload Photo'}
+                        </>
+                      )}
+                    </label>
+                    <p className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Photo will be displayed on the verification page
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     Contact Name
@@ -932,6 +1128,27 @@ export default function PreapprovalLettersPage() {
                     } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none`}
                   />
                 </div>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    NMLS ID
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.defaultContactNmlsId || ''}
+                    onChange={(e) => setSettings({ ...settings, defaultContactNmlsId: e.target.value || null })}
+                    className={`w-full px-4 py-2.5 rounded-lg border ${
+                      isDark
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none`}
+                    placeholder="123456"
+                  />
+                  <p className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Displays as &quot;NMLS ID #123456&quot;
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     Phone
@@ -1210,6 +1427,26 @@ export default function PreapprovalLettersPage() {
 
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  NMLS ID
+                </label>
+                <input
+                  type="text"
+                  value={officerFormData.nmlsId}
+                  onChange={(e) => setOfficerFormData({ ...officerFormData, nmlsId: e.target.value })}
+                  className={`w-full px-4 py-2.5 rounded-lg border ${
+                    isDark
+                      ? 'bg-gray-700 border-gray-600 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                  } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none`}
+                  placeholder="123456"
+                />
+                <p className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Will display as &quot;NMLS ID #123456&quot; on verification page
+                </p>
+              </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   Phone *
                 </label>
                 <input
@@ -1242,6 +1479,85 @@ export default function PreapprovalLettersPage() {
                   } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none`}
                   placeholder="preston@example.com"
                 />
+              </div>
+
+              {/* Photo Upload */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Photo
+                </label>
+                <div className="flex items-center gap-4">
+                  {/* Photo Preview */}
+                  <div className="flex-shrink-0">
+                    {officerFormData.photoUrl ? (
+                      <div className="relative">
+                        <img
+                          src={officerFormData.photoUrl}
+                          alt="Officer photo"
+                          className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={removePhoto}
+                          className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                          title="Remove photo"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-gray-400">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  {/* Upload Button */}
+                  <div className="flex-1">
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadPhoto(file);
+                      }}
+                      className="hidden"
+                      id="photo-upload"
+                    />
+                    <label
+                      htmlFor="photo-upload"
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
+                        isDark
+                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      } ${uploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {uploadingPhoto ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {officerFormData.photoUrl ? 'Change Photo' : 'Upload Photo'}
+                        </>
+                      )}
+                    </label>
+                    <p className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Photo will be displayed on the verification page
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center gap-3">

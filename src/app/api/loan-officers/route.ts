@@ -16,13 +16,17 @@ export async function GET(request: NextRequest) {
     const officers = await prisma.loan_officers.findMany({
       where: activeOnly ? { is_active: true } : undefined,
       orderBy: { name: 'asc' },
+      include: { photo: true },
     })
 
     const items = officers.map(officer => ({
       id: officer.id,
       name: officer.name,
+      nmlsId: officer.nmls_id,
       phone: officer.phone,
       email: officer.email,
+      photoId: officer.photo_id,
+      photoUrl: officer.photo?.url || null,
       isActive: officer.is_active,
       updatedAt: officer.updated_at,
       createdAt: officer.created_at,
@@ -42,7 +46,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { name, phone, email, isActive } = body
+    const { name, nmlsId, phone, email, isActive, photoId } = body
 
     if (!name) {
       return errorResponse('Name is required', 400)
@@ -59,17 +63,23 @@ export async function POST(request: NextRequest) {
     const officer = await prisma.loan_officers.create({
       data: {
         name,
+        nmls_id: nmlsId || null,
         phone,
         email,
         is_active: isActive ?? true,
+        photo_id: photoId || null,
       },
+      include: { photo: true },
     })
 
     return successResponse({
       id: officer.id,
       name: officer.name,
+      nmlsId: officer.nmls_id,
       phone: officer.phone,
       email: officer.email,
+      photoId: officer.photo_id,
+      photoUrl: officer.photo?.url || null,
       isActive: officer.is_active,
       createdAt: officer.created_at,
     }, 201)

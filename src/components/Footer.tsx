@@ -61,7 +61,7 @@ export default async function Footer() {
   ];
 
   return (
-    <footer className="bg-grey-900 text-grey-300">
+    <footer className="bg-[#171f53] text-grey-300">
       <div className="container-custom py-10 md:py-12">
         {/* Main Footer */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
@@ -121,13 +121,30 @@ export default async function Footer() {
           ))}
         </div>
 
-        {/* Legal Text */}
+        {/* Legal Text with Compliance Logos */}
         <div className="text-xs text-grey-500 space-y-2 pt-6 border-t border-grey-700">
           <p>
             {copyrightText.replace('{{year}}', new Date().getFullYear().toString())}
           </p>
           <p>
-            {nmlsInfo}
+            {nmlsInfo.replace('Equal Housing Opportunity.', '')}
+            <span className="inline-flex items-center whitespace-nowrap">
+              Equal Housing Opportunity.
+              {/* Equal Housing Logo - inline with text */}
+              <a
+                href="https://www.nmlsconsumeraccess.org"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center ml-1 hover:opacity-80 transition-opacity"
+                aria-label="Equal Housing Opportunity"
+              >
+                <svg className="h-4 w-4 inline-block" viewBox="0 0 24 24" fill="currentColor" style={{ color: 'rgb(107 114 128)' }}>
+                  <path d="M12 3L2 12h3v9h14v-9h3L12 3zm0 2.5L18 11v8H6v-8l6-5.5z"/>
+                  <rect x="9" y="13" width="6" height="1" fill="currentColor"/>
+                  <rect x="9" y="15" width="6" height="1" fill="currentColor"/>
+                </svg>
+              </a>
+            </span>
           </p>
         </div>
       </div>

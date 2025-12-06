@@ -17,6 +17,21 @@ model admin_users {
   created_at    DateTime? @default(now()) @db.Timestamptz(6)
 }
 
+model authors {
+  id         Int          @id @default(autoincrement())
+  name       String       @db.VarChar(255)
+  email      String?      @db.VarChar(255)
+  phone      String?      @db.VarChar(50)
+  nmls_id    String?      @db.VarChar(50)
+  bio        String?
+  photo_id   Int?
+  is_active  Boolean?     @default(true)
+  created_at DateTime?    @default(now()) @db.Timestamptz(6)
+  updated_at DateTime?    @default(now()) @db.Timestamptz(6)
+  photo      media?       @relation(fields: [photo_id], references: [id], onUpdate: NoAction)
+  blog_posts blog_posts[]
+}
+
 model blog_posts {
   id                       Int                        @id @default(autoincrement())
   title                    String                     @db.VarChar
@@ -28,12 +43,15 @@ model blog_posts {
   author                   String?                    @db.VarChar
   updated_at               DateTime                   @default(now()) @db.Timestamptz(3)
   created_at               DateTime                   @default(now()) @db.Timestamptz(3)
+  author_id                Int?
+  author_ref               authors?                   @relation(fields: [author_id], references: [id], onUpdate: NoAction)
   media                    media?                     @relation(fields: [featured_image_id], references: [id], onUpdate: NoAction, map: "blog_posts_featured_image_id_media_id_fk")
   blog_posts_key_takeaways blog_posts_key_takeaways[]
 
   @@index([created_at])
   @@index([featured_image_id], map: "blog_posts_featured_image_idx")
   @@index([updated_at])
+  @@index([author_id], map: "blog_posts_author_idx")
 }
 
 model blog_posts_key_takeaways {
@@ -60,6 +78,11 @@ model featured_loans {
   is_active               Boolean?                  @default(true)
   updated_at              DateTime                  @default(now()) @db.Timestamptz(3)
   created_at              DateTime                  @default(now()) @db.Timestamptz(3)
+  show_dpa                Boolean?                  @default(true)
+  learn_more_enabled      Boolean?                  @default(false)
+  learn_more_url          String?                   @db.VarChar
+  learn_more_text         String?                   @default("Learn More") @db.VarChar
+  dpa_text                String?                   @default("Down Payment Assistance Available") @db.VarChar
   media                   media?                    @relation("featured_loans_image_idTomedia", fields: [image_id], references: [id], onUpdate: NoAction)
   featured_loans_features featured_loans_features[]
 }
@@ -148,11 +171,14 @@ model media {
   focal_x                                                    Decimal?          @db.Decimal
   focal_y                                                    Decimal?          @db.Decimal
   label                                                      String?           @db.VarChar
+  authors                                                    authors[]
   blog_posts                                                 blog_posts[]
   featured_loans                                             featured_loans[]  @relation("featured_loans_image_idTomedia")
   header_settings_background_image                           header_settings[] @relation("header_settings_background_image_idTomedia")
   header_settings_header_settings_background_video_idTomedia header_settings[] @relation("header_settings_background_video_idTomedia")
   header_settings_pattern_image                              header_settings[] @relation("header_settings_pattern_image_idTomedia")
+  lender_logos                                               lender_logos[]
+  loan_officers                                              loan_officers[]
   pages                                                      pages[]           @relation("pages_hero_image_idTomedia")
   seo_settings_seo_settings_favicon_idTomedia                seo_settings[]    @relation("seo_settings_favicon_idTomedia")
   seo_settings_seo_settings_og_image_idTomedia               seo_settings[]    @relation("seo_settings_og_image_idTomedia")
@@ -273,8 +299,6 @@ model site_settings {
   created_at                               DateTime? @db.Timestamptz(3)
   logo_height                              Decimal?  @default(40) @db.Decimal
   logo_white_height                        Decimal?  @default(40) @db.Decimal
-  logo_height_mobile                       Decimal?  @default(30) @db.Decimal
-  logo_white_height_mobile                 Decimal?  @default(30) @db.Decimal
   company_name                             String?   @db.VarChar
   social_links_facebook                    String?   @db.VarChar
   social_links_twitter                     String?   @db.VarChar
@@ -284,6 +308,10 @@ model site_settings {
   legal_banner_mobile                      String?   @db.VarChar
   legal_banner_show_desktop                Boolean?  @default(true)
   legal_banner_show_mobile                 Boolean?  @default(true)
+  logo_height_mobile                       Decimal?  @default(30) @db.Decimal
+  logo_white_height_mobile                 Decimal?  @default(30) @db.Decimal
+  snow_effect_enabled                      Boolean?  @default(false)
+  santa_icon_enabled                       Boolean?  @default(false)
   media_site_settings_logo_idTomedia       media?    @relation("site_settings_logo_idTomedia", fields: [logo_id], references: [id], onUpdate: NoAction, map: "site_settings_logo_id_media_id_fk")
   media_site_settings_logo_white_idTomedia media?    @relation("site_settings_logo_white_idTomedia", fields: [logo_white_id], references: [id], onUpdate: NoAction, map: "site_settings_logo_white_id_media_id_fk")
 
@@ -337,6 +365,17 @@ model homepage_settings {
   articles_title                String?   @db.VarChar
   articles_subtitle             String?   @db.VarChar
   tools_cards                   Json?
+  hero_widget_type              String?   @default("badge") @db.VarChar(50)
+  hero_widget_enabled           Boolean?  @default(true)
+  hero_photo1_url               String?   @db.VarChar(500)
+  hero_photo2_url               String?   @db.VarChar(500)
+  hero_photo3_url               String?   @db.VarChar(500)
+  hero_badge_text               String?   @default("Same-Day Pre-Approvals") @db.VarChar(255)
+  hero_badge_subtext            String?   @default("Fast & hassle-free") @db.VarChar(255)
+  why_choose_us                 Json?
+  more_loans_style              String?   @default("red") @db.VarChar(20)
+  hero_mobile_gradient_enabled  Boolean?  @default(true)
+  dpa_background_style          String?   @default("blue") @db.VarChar(20)
 }
 
 model loan_officers {
@@ -347,6 +386,9 @@ model loan_officers {
   is_active           Boolean?              @default(true)
   updated_at          DateTime?             @default(now()) @db.Timestamptz(3)
   created_at          DateTime?             @default(now()) @db.Timestamptz(3)
+  photo_id            Int?
+  nmls_id             String?               @db.VarChar(50)
+  photo               media?                @relation(fields: [photo_id], references: [id])
   preapproval_letters preapproval_letters[]
 
   @@index([is_active])
@@ -372,18 +414,20 @@ model preapproval_letters {
 }
 
 model verify_page_settings {
-  id                    Int       @id @default(1)
-  page_title            String?   @default("Pre-Approval Letter Verification") @db.VarChar(255)
-  page_subtitle         String?   @default("Enter the reference ID from your pre-approval letter to verify its authenticity.")
-  success_title         String?   @default("Verified - Authentic Letter") @db.VarChar(255)
-  success_message       String?   @default("This pre-approval letter is authentic.")
-  fail_title            String?   @default("Verification Failed") @db.VarChar(255)
-  fail_message          String?   @default("We could not verify this reference ID. The letter may be invalid, expired, or entered incorrectly.")
-  default_contact_name  String?   @default("American Mortgage") @db.VarChar(255)
-  default_contact_phone String?   @default("(XXX) XXX-XXXX") @db.VarChar(50)
-  default_contact_email String?   @default("verify@americanmtg.com") @db.VarChar(255)
-  updated_at            DateTime? @default(now()) @db.Timestamptz(6)
-  created_at            DateTime? @default(now()) @db.Timestamptz(6)
+  id                      Int       @id @default(1)
+  page_title              String?   @default("Pre-Approval Letter Verification") @db.VarChar(255)
+  page_subtitle           String?   @default("Enter the reference ID from your pre-approval letter to verify its authenticity.")
+  success_title           String?   @default("Verified - Authentic Letter") @db.VarChar(255)
+  success_message         String?   @default("This pre-approval letter is authentic.")
+  fail_title              String?   @default("Verification Failed") @db.VarChar(255)
+  fail_message            String?   @default("We could not verify this reference ID. The letter may be invalid, expired, or entered incorrectly.")
+  default_contact_name    String?   @default("American Mortgage") @db.VarChar(255)
+  default_contact_phone   String?   @default("(XXX) XXX-XXXX") @db.VarChar(50)
+  default_contact_email   String?   @default("verify@americanmtg.com") @db.VarChar(255)
+  updated_at              DateTime? @default(now()) @db.Timestamptz(6)
+  created_at              DateTime? @default(now()) @db.Timestamptz(6)
+  default_contact_photo   String?   @db.VarChar(500)
+  default_contact_nmls_id String?   @db.VarChar(50)
 }
 
 model mobile_menu_buttons {
@@ -411,53 +455,53 @@ model admin_menu_settings {
 }
 
 model giveaways {
-  id                    Int                     @id @default(autoincrement())
-  title                 String                  @db.VarChar(255)
-  slug                  String                  @unique @db.VarChar(255)
-  description           String?
-  rules                 String?
-  prize_title           String                  @db.VarChar(255)
-  prize_value           Decimal?                @db.Decimal(10, 2)
-  prize_description     String?
-  prize_image           String?                 @db.VarChar(512)
-  detail_image          String?                 @db.VarChar(512)
-  start_date            DateTime                @db.Timestamptz(6)
-  end_date              DateTime                @db.Timestamptz(6)
-  drawing_date          DateTime?               @db.Timestamptz(6)
-  num_winners           Int?                    @default(1)
-  alternate_winners     Int?                    @default(3)
-  alternate_selection   String?                 @default("auto") @db.VarChar(20)
-  require_w9            Boolean?                @default(false)
-  w9_threshold          Decimal?                @default(600.00) @db.Decimal(10, 2)
-  restricted_states     String[]                @default([])
-  status                String?                 @default("draft") @db.VarChar(20)
-  winner_selected       Boolean?                @default(false)
-  created_at            DateTime?               @default(now()) @db.Timestamptz(6)
-  updated_at            DateTime?               @default(now()) @db.Timestamptz(6)
-  entry_type            String?                 @default("both") @db.VarChar(20)
-  primary_contact       String?                 @default("phone") @db.VarChar(20)
-  bonus_entries_enabled Boolean?                @default(false)
-  bonus_entry_count     Int?                    @default(1)
-  require_id            Boolean?                @default(false)
-  deleted_at            DateTime?               @db.Timestamptz(6)
-  archived              Boolean?                @default(false)
-  button_text           String?                 @default("Enter Now") @db.VarChar(50)
-  button_color          String?                 @default("#2563eb") @db.VarChar(20)
-  button_icon           String?                 @default("ticket") @db.VarChar(50)
-  delivery_method       String?                 @default("email") @db.VarChar(20)
-  position              Int?                    @default(0)
-  fine_print            String?
-  referral_enabled      Boolean?                @default(false)
-  referral_bonus_entries Int?                   @default(1)
-  max_referral_bonus    Int?                    @default(10)
-  max_referrals_per_ip  Int?                    @default(3)
-  entries               giveaway_entries[]
-  unsubscribes          giveaway_unsubscribes[]
-  winners               giveaway_winners[]
-  notifications         notifications_log[]
-  scheduled_jobs        scheduled_jobs[]
-  sections              giveaway_sections[]
-  referrals             giveaway_referrals[]
+  id                     Int                     @id @default(autoincrement())
+  title                  String                  @db.VarChar(255)
+  slug                   String                  @unique @db.VarChar(255)
+  description            String?
+  rules                  String?
+  prize_title            String                  @db.VarChar(255)
+  prize_value            Decimal?                @db.Decimal(10, 2)
+  prize_description      String?
+  prize_image            String?                 @db.VarChar(512)
+  start_date             DateTime                @db.Timestamptz(6)
+  end_date               DateTime                @db.Timestamptz(6)
+  drawing_date           DateTime?               @db.Timestamptz(6)
+  num_winners            Int?                    @default(1)
+  alternate_winners      Int?                    @default(3)
+  alternate_selection    String?                 @default("auto") @db.VarChar(20)
+  require_w9             Boolean?                @default(false)
+  w9_threshold           Decimal?                @default(600.00) @db.Decimal(10, 2)
+  restricted_states      String[]                @default([])
+  status                 String?                 @default("draft") @db.VarChar(20)
+  winner_selected        Boolean?                @default(false)
+  created_at             DateTime?               @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime?               @default(now()) @db.Timestamptz(6)
+  entry_type             String?                 @default("both") @db.VarChar(20)
+  primary_contact        String?                 @default("phone") @db.VarChar(20)
+  bonus_entries_enabled  Boolean?                @default(false)
+  bonus_entry_count      Int?                    @default(1)
+  require_id             Boolean?                @default(false)
+  deleted_at             DateTime?               @db.Timestamptz(6)
+  archived               Boolean?                @default(false)
+  button_text            String?                 @default("Enter Now") @db.VarChar(50)
+  button_color           String?                 @default("#2563eb") @db.VarChar(20)
+  button_icon            String?                 @default("ticket") @db.VarChar(50)
+  delivery_method        String?                 @default("email") @db.VarChar(20)
+  position               Int?                    @default(0)
+  detail_image           String?                 @db.VarChar(512)
+  fine_print             String?
+  referral_enabled       Boolean?                @default(false)
+  referral_bonus_entries Int?                    @default(1)
+  max_referral_bonus     Int?                    @default(10)
+  max_referrals_per_ip   Int?                    @default(3)
+  entries                giveaway_entries[]
+  referrals              giveaway_referrals[]
+  sections               giveaway_sections[]
+  unsubscribes           giveaway_unsubscribes[]
+  winners                giveaway_winners[]
+  notifications          notifications_log[]
+  scheduled_jobs         scheduled_jobs[]
 
   @@index([slug], map: "idx_giveaways_slug")
   @@index([status], map: "idx_giveaways_status")
@@ -479,32 +523,32 @@ model giveaway_sections {
 }
 
 model giveaway_entries {
-  id                  Int                      @id @default(autoincrement())
-  giveaway_id         Int
-  email               String                   @db.VarChar(255)
-  phone               String                   @db.VarChar(20)
-  first_name          String                   @db.VarChar(100)
-  last_name           String                   @db.VarChar(100)
-  state               String                   @db.VarChar(2)
-  zip_code            String?                  @db.VarChar(10)
-  sms_opt_in          Boolean?                 @default(false)
-  email_opt_in        Boolean?                 @default(true)
-  agreed_to_rules     Boolean?                 @default(true)
-  ip_address          String?                  @db.VarChar(45)
-  user_agent          String?
-  entry_source        String?                  @db.VarChar(50)
-  referral_code       String?                  @db.VarChar(50)
-  is_valid            Boolean?                 @default(true)
-  invalidation_reason String?
-  created_at          DateTime?                @default(now()) @db.Timestamptz(6)
-  entry_count         Int?                     @default(1)
-  bonus_claimed       Boolean?                 @default(false)
-  secondary_contact   String?                  @db.VarChar(255)
-  giveaway            giveaways                @relation(fields: [giveaway_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  winner              giveaway_winners[]
-  notifications       notifications_log[]
-  referrals_as_referrer giveaway_referrals[]   @relation("referrer_entry")
-  referrals_as_referred giveaway_referrals[]   @relation("referred_entry")
+  id                    Int                  @id @default(autoincrement())
+  giveaway_id           Int
+  email                 String               @db.VarChar(255)
+  phone                 String               @db.VarChar(20)
+  first_name            String               @db.VarChar(100)
+  last_name             String               @db.VarChar(100)
+  state                 String               @db.VarChar(2)
+  zip_code              String?              @db.VarChar(10)
+  sms_opt_in            Boolean?             @default(false)
+  email_opt_in          Boolean?             @default(true)
+  agreed_to_rules       Boolean?             @default(true)
+  ip_address            String?              @db.VarChar(45)
+  user_agent            String?
+  entry_source          String?              @db.VarChar(50)
+  referral_code         String?              @db.VarChar(50)
+  is_valid              Boolean?             @default(true)
+  invalidation_reason   String?
+  created_at            DateTime?            @default(now()) @db.Timestamptz(6)
+  entry_count           Int?                 @default(1)
+  bonus_claimed         Boolean?             @default(false)
+  secondary_contact     String?              @db.VarChar(255)
+  giveaway              giveaways            @relation(fields: [giveaway_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  referrals_as_referred giveaway_referrals[] @relation("referred_entry")
+  referrals_as_referrer giveaway_referrals[] @relation("referrer_entry")
+  winner                giveaway_winners[]
+  notifications         notifications_log[]
 
   @@unique([giveaway_id, email])
   @@unique([giveaway_id, phone])
@@ -524,8 +568,8 @@ model giveaway_referrals {
   created_at            DateTime?         @default(now()) @db.Timestamptz(6)
   converted_at          DateTime?         @db.Timestamptz(6)
   giveaway              giveaways         @relation(fields: [giveaway_id], references: [id], onDelete: Cascade)
+  referred_entry        giveaway_entries? @relation("referred_entry", fields: [referred_entry_id], references: [id])
   referrer_entry        giveaway_entries  @relation("referrer_entry", fields: [referrer_entry_id], references: [id], onDelete: Cascade)
-  referred_entry        giveaway_entries? @relation("referred_entry", fields: [referred_entry_id], references: [id], onDelete: SetNull)
 
   @@index([referral_code], map: "idx_referral_code")
   @@index([referrer_entry_id], map: "idx_referrer_entry")
@@ -660,6 +704,130 @@ model giveaway_notification_subscribers {
   is_active     Boolean?  @default(true)
 
   @@index([email], map: "idx_giveaway_notif_subs_email")
+}
+
+model legal_pages {
+  id               Int       @id @default(autoincrement())
+  slug             String    @unique @db.VarChar(50)
+  title            String    @db.VarChar(255)
+  meta_description String?   @db.VarChar(500)
+  content          String?
+  contact_company  String?   @default("American Mortgage") @db.VarChar(255)
+  contact_nmls_id  String?   @db.VarChar(50)
+  contact_address  String?   @db.VarChar(500)
+  contact_email    String?   @default("info@americanmtg.com") @db.VarChar(255)
+  contact_phone    String?   @db.VarChar(50)
+  contact_website  String?   @default("americanmtg.com") @db.VarChar(255)
+  updated_at       DateTime? @default(now()) @db.Timestamptz(6)
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([slug], map: "idx_legal_pages_slug")
+}
+
+model loan_page_settings {
+  id                     Int       @id @default(autoincrement())
+  hero_title             String?   @default("Loan Programs") @db.VarChar(255)
+  hero_description       String?   @default("Whether you are buying your first home, upgrading, or refinancing, we have loan options tailored to your needs.")
+  show_jump_pills        Boolean?  @default(true)
+  bottom_cta_title       String?   @default("Not Sure Which Loan is Right for You?") @db.VarChar(255)
+  bottom_cta_description String?   @default("Our loan experts are here to help. Get personalized advice with no obligation.")
+  updated_at             DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model loan_page_widgets {
+  id              Int       @id @default(autoincrement())
+  widget_type     String    @db.VarChar(50)
+  title           String    @db.VarChar(255)
+  description     String?
+  button_text     String?   @db.VarChar(100)
+  button_link     String?   @db.VarChar(255)
+  icon_name       String?   @db.VarChar(50)
+  icon_color      String?   @db.VarChar(20)
+  partner_name    String?   @db.VarChar(255)
+  partner_company String?   @db.VarChar(255)
+  partner_email   String?   @db.VarChar(255)
+  partner_phone   String?   @db.VarChar(50)
+  display_order   Int?      @default(0)
+  show_on_mobile  Boolean?  @default(true)
+  show_on_desktop Boolean?  @default(true)
+  is_active       Boolean?  @default(true)
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model loan_products {
+  id                     Int       @id @default(autoincrement())
+  name                   String    @db.VarChar(255)
+  tagline                String?   @db.VarChar(255)
+  description            String?
+  icon_name              String?   @default("home") @db.VarChar(50)
+  highlights             String[]
+  best_for               String?   @db.VarChar(255)
+  down_payment           String?   @db.VarChar(50)
+  credit_score           String?   @db.VarChar(50)
+  display_order          Int?      @default(0)
+  is_active              Boolean?  @default(true)
+  created_at             DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime? @default(now()) @db.Timestamptz(6)
+  primary_button_text    String?   @default("Apply Now") @db.VarChar(100)
+  primary_button_link    String?   @default("/apply") @db.VarChar(255)
+  primary_button_style   String?   @default("filled") @db.VarChar(20)
+  secondary_button_text  String?   @default("Call to Learn More") @db.VarChar(100)
+  secondary_button_link  String?   @default("tel:870-926-4052") @db.VarChar(255)
+  secondary_button_style String?   @default("outline") @db.VarChar(20)
+  show_secondary_button  Boolean?  @default(true)
+  slug                   String?   @db.VarChar(100)
+  hero_image             String?   @db.VarChar(255)
+  article_intro          String?
+  article_sections       Json?     @default("[]")
+  article_requirements   String[]
+  article_faqs           Json?     @default("[]")
+}
+
+model lender_logos {
+  id            Int       @id @default(autoincrement())
+  name          String    @db.VarChar(255)
+  logo_url      String?   @db.VarChar(500)
+  media_id      Int?
+  width         Int?      @default(120)
+  height        Int?      @default(40)
+  display_order Int?      @default(0)
+  is_active     Boolean?  @default(true)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+  media         media?    @relation(fields: [media_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([display_order], map: "idx_lender_logos_order")
+  @@index([is_active], map: "idx_lender_logos_active")
+}
+
+model lender_logos_settings {
+  id            Int       @id @default(1)
+  section_title String?   @default("Trusted Lender Partners") @db.VarChar(255)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model about_page_settings {
+  id                 Int       @id @default(autoincrement())
+  hero_title         String?   @default("About American Mortgage") @db.VarChar(255)
+  hero_subtitle      String?   @default("Your trusted Arkansas mortgage broker — dedicated to making homeownership accessible for everyone.")
+  mission_title      String?   @default("Our Mission") @db.VarChar(255)
+  mission_content    String?   @default("American Mortgage was founded with a clear purpose: to simplify the home buying process and make it accessible to everyone. We combine industry expertise with personalized service to guide you toward the right loan for your situation.")
+  what_we_do_title   String?   @default("What We Do") @db.VarChar(255)
+  what_we_do_content String?   @default("We offer a full range of mortgage products including FHA, VA, USDA, and Conventional loans. Our team specializes in helping first-time homebuyers, veterans, and families across Arkansas find financing solutions that fit their needs.")
+  what_we_do_items   Json?     @default("[\"Purchase and refinance loans\", \"Down payment assistance programs\", \"Fast pre-approvals\", \"Competitive rates and terms\"]")
+  approach_title     String?   @default("Our Approach") @db.VarChar(255)
+  approach_items     Json?     @default("[{\"icon\": \"eye\", \"title\": \"Transparent\", \"description\": \"Clear communication and no hidden fees. We explain every step of the process.\"}, {\"icon\": \"lightning\", \"title\": \"Responsive\", \"description\": \"We return calls and emails promptly. Your questions deserve quick answers.\"}, {\"icon\": \"clock\", \"title\": \"Efficient\", \"description\": \"Streamlined processes to get you from application to closing without delays.\"}]")
+  contact_title      String?   @default("Contact Us") @db.VarChar(255)
+  contact_name       String?   @default("American Mortgage") @db.VarChar(255)
+  contact_nmls       String?   @default("#2676687") @db.VarChar(50)
+  contact_phone      String?   @default("(870) 926-4052") @db.VarChar(50)
+  contact_email      String?   @default("hello@americanmtg.com") @db.VarChar(255)
+  contact_address    String?   @default("122 CR 7185, Jonesboro, AR 72405")
+  cta_text           String?   @default("Start Your Application") @db.VarChar(255)
+  cta_url            String?   @default("/apply") @db.VarChar(255)
+  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 enum enum_featured_loans_icon {

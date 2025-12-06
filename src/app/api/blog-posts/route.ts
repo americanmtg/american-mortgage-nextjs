@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
         take: limit,
         include: {
           media: true,
+          author_ref: {
+            include: { photo: true },
+          },
           blog_posts_key_takeaways: {
             orderBy: { order: 'asc' },
           },
@@ -43,6 +46,16 @@ export async function GET(request: NextRequest) {
       content: post.content,
       publishedAt: post.published_at,
       author: post.author,
+      authorId: post.author_id,
+      authorRef: post.author_ref ? {
+        id: post.author_ref.id,
+        name: post.author_ref.name,
+        email: post.author_ref.email,
+        phone: post.author_ref.phone,
+        nmlsId: post.author_ref.nmls_id,
+        bio: post.author_ref.bio,
+        photoUrl: post.author_ref.photo?.url || null,
+      } : null,
       keyTakeaways: post.blog_posts_key_takeaways.map(kt => ({
         id: kt.id,
         takeaway: kt.takeaway,
@@ -79,6 +92,7 @@ export async function POST(request: NextRequest) {
       excerpt,
       content,
       author,
+      authorId,
       featuredImageId,
       keyTakeaways,
       publishedAt,
@@ -104,6 +118,7 @@ export async function POST(request: NextRequest) {
         excerpt: excerpt || null,
         content: content || null,
         author: author || null,
+        author_id: authorId || null,
         featured_image_id: featuredImageId || null,
         published_at: publishedAt ? new Date(publishedAt) : new Date(),
         blog_posts_key_takeaways: keyTakeaways?.length ? {
@@ -116,6 +131,9 @@ export async function POST(request: NextRequest) {
       },
       include: {
         media: true,
+        author_ref: {
+          include: { photo: true },
+        },
         blog_posts_key_takeaways: {
           orderBy: { order: 'asc' },
         },
@@ -135,6 +153,16 @@ export async function POST(request: NextRequest) {
       content: post.content,
       publishedAt: post.published_at,
       author: post.author,
+      authorId: post.author_id,
+      authorRef: post.author_ref ? {
+        id: post.author_ref.id,
+        name: post.author_ref.name,
+        email: post.author_ref.email,
+        phone: post.author_ref.phone,
+        nmlsId: post.author_ref.nmls_id,
+        bio: post.author_ref.bio,
+        photoUrl: post.author_ref.photo?.url || null,
+      } : null,
       keyTakeaways: post.blog_posts_key_takeaways.map(kt => ({
         id: kt.id,
         takeaway: kt.takeaway,

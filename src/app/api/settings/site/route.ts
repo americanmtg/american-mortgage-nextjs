@@ -53,6 +53,8 @@ export async function GET() {
         linkedin: settings.social_links_linkedin,
         youtube: settings.social_links_youtube,
       },
+      snowEffectEnabled: settings.snow_effect_enabled ?? false,
+      santaIconEnabled: settings.santa_icon_enabled ?? false,
       updatedAt: settings.updated_at,
     })
   } catch (error) {
@@ -84,6 +86,8 @@ export async function PUT(request: NextRequest) {
       logoHeightMobile,
       logoWhiteHeightMobile,
       socialLinks,
+      snowEffectEnabled,
+      santaIconEnabled,
     } = body
 
     // Find existing settings or create new
@@ -113,6 +117,8 @@ export async function PUT(request: NextRequest) {
           ...(socialLinks?.instagram !== undefined && { social_links_instagram: socialLinks.instagram }),
           ...(socialLinks?.linkedin !== undefined && { social_links_linkedin: socialLinks.linkedin }),
           ...(socialLinks?.youtube !== undefined && { social_links_youtube: socialLinks.youtube }),
+          ...(snowEffectEnabled !== undefined && { snow_effect_enabled: snowEffectEnabled }),
+          ...(santaIconEnabled !== undefined && { santa_icon_enabled: santaIconEnabled }),
           updated_at: new Date(),
         },
         include: {
@@ -142,6 +148,8 @@ export async function PUT(request: NextRequest) {
           social_links_instagram: socialLinks?.instagram || null,
           social_links_linkedin: socialLinks?.linkedin || null,
           social_links_youtube: socialLinks?.youtube || null,
+          snow_effect_enabled: snowEffectEnabled ?? false,
+          santa_icon_enabled: santaIconEnabled ?? false,
         },
         include: {
           media_site_settings_logo_idTomedia: true,
@@ -171,6 +179,8 @@ export async function PUT(request: NextRequest) {
         linkedin: settings.social_links_linkedin,
         youtube: settings.social_links_youtube,
       },
+      snowEffectEnabled: settings.snow_effect_enabled ?? false,
+      santaIconEnabled: settings.santa_icon_enabled ?? false,
       updatedAt: settings.updated_at,
     })
   } catch (error) {

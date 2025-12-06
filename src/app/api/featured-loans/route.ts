@@ -39,6 +39,11 @@ export async function GET(request: NextRequest) {
       linkText: loan.link_text,
       order: loan.order ? Number(loan.order) : 0,
       isActive: loan.is_active,
+      showDPA: loan.show_dpa ?? true,
+      dpaText: loan.dpa_text ?? 'Down Payment Assistance Available',
+      learnMoreEnabled: loan.learn_more_enabled ?? false,
+      learnMoreUrl: loan.learn_more_url,
+      learnMoreText: loan.learn_more_text ?? 'Learn More',
       features: loan.featured_loans_features.map(f => ({
         id: f.id,
         text: f.text,
@@ -71,6 +76,11 @@ export async function POST(request: NextRequest) {
       linkText,
       order,
       isActive,
+      showDPA,
+      dpaText,
+      learnMoreEnabled,
+      learnMoreUrl,
+      learnMoreText,
       features,
     } = body
 
@@ -95,6 +105,11 @@ export async function POST(request: NextRequest) {
         link_text: linkText || 'Learn More',
         order: order ?? 0,
         is_active: isActive ?? true,
+        show_dpa: showDPA ?? true,
+        dpa_text: dpaText || 'Down Payment Assistance Available',
+        learn_more_enabled: learnMoreEnabled ?? false,
+        learn_more_url: learnMoreUrl || null,
+        learn_more_text: learnMoreText || 'Learn More',
         featured_loans_features: features?.length ? {
           create: features.map((f: { text: string }, index: number) => ({
             id: uuidv4(),
@@ -120,6 +135,11 @@ export async function POST(request: NextRequest) {
       linkText: loan.link_text,
       order: loan.order ? Number(loan.order) : 0,
       isActive: loan.is_active,
+      showDPA: loan.show_dpa ?? true,
+      dpaText: loan.dpa_text ?? 'Down Payment Assistance Available',
+      learnMoreEnabled: loan.learn_more_enabled ?? false,
+      learnMoreUrl: loan.learn_more_url,
+      learnMoreText: loan.learn_more_text ?? 'Learn More',
       features: loan.featured_loans_features.map(f => ({
         id: f.id,
         text: f.text,

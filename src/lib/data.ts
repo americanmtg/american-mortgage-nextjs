@@ -135,10 +135,18 @@ export async function getHomepageSettings() {
         reassuranceText: settings.hero_reassurance_text || 'No impact to credit',
         ratingPercent: settings.hero_rating_percent || '98%',
         ratingText: settings.hero_rating_text || 'would recommend',
+        widgetType: (settings.hero_widget_type || 'badge') as 'ratings' | 'badge',
+        widgetEnabled: settings.hero_widget_enabled ?? true,
+        photo1Url: settings.hero_photo1_url || null,
+        photo2Url: settings.hero_photo2_url || null,
+        photo3Url: settings.hero_photo3_url || null,
+        badgeText: settings.hero_badge_text || 'Same-Day Pre-Approvals',
+        badgeSubtext: settings.hero_badge_subtext || 'Fast & hassle-free',
+        mobileGradientEnabled: settings.hero_mobile_gradient_enabled ?? true,
       },
       featuredLoans: {
         eyebrow: settings.featured_loans_eyebrow || 'Featured Loans',
-        headlineLine1: settings.featured_loans_headline_line1 || 'From first home to refinance,',
+        headlineLine1: settings.featured_loans_headline_line1 || 'From first home',
         headlineLine2: settings.featured_loans_headline_line2 || "we're here for you.",
       },
       dpa: {
@@ -150,6 +158,7 @@ export async function getHomepageSettings() {
         buttonText: settings.dpa_button_text || 'Check Eligibility',
         buttonUrl: settings.dpa_button_url || '/apply',
         reassuranceText: settings.dpa_reassurance_text || 'No impact to credit',
+        backgroundStyle: (settings.dpa_background_style || 'blue') as 'blue' | 'grey',
       },
       tools: {
         eyebrow: settings.tools_eyebrow || 'Tools & Calculators',
@@ -182,11 +191,13 @@ export async function getHomepageSettings() {
         text: settings.more_loans_text || 'Not finding the right fit? We have',
         linkText: settings.more_loans_link_text || 'more loan options',
         linkUrl: settings.more_loans_link_url || '/loans',
+        style: (settings.more_loans_style || 'red') as 'red' | 'blue',
       },
       articles: {
         title: settings.articles_title || 'Latest Articles',
         subtitle: settings.articles_subtitle || 'Tips and guides for homebuyers',
       },
+      whyChooseUs: settings.why_choose_us as any || null,
       updatedAt: settings.updated_at,
     }
   } catch (error) {
@@ -530,6 +541,11 @@ export async function getFeaturedLoans() {
       linkText: loan.link_text,
       order: loan.order ? Number(loan.order) : 0,
       isActive: loan.is_active,
+      showDPA: loan.show_dpa ?? true,
+      dpaText: loan.dpa_text ?? 'Down Payment Assistance Available',
+      learnMoreEnabled: loan.learn_more_enabled ?? false,
+      learnMoreUrl: loan.learn_more_url,
+      learnMoreText: loan.learn_more_text ?? 'Learn More',
       features: loan.featured_loans_features.map(f => ({
         id: f.id,
         text: f.text,
@@ -820,5 +836,134 @@ export async function getGiveawayBySlug(slug: string) {
   } catch (error) {
     console.error('Error fetching giveaway:', error)
     return null
+  }
+}
+
+// Legal Pages
+export async function getLegalPage(slug: string) {
+  try {
+    const page = await prisma.legal_pages.findUnique({
+      where: { slug },
+    })
+
+    if (!page) return null
+
+    return {
+      id: page.id,
+      slug: page.slug,
+      title: page.title,
+      metaDescription: page.meta_description,
+      content: page.content,
+      contactCompany: page.contact_company,
+      contactNmlsId: page.contact_nmls_id,
+      contactAddress: page.contact_address,
+      contactEmail: page.contact_email,
+      contactPhone: page.contact_phone,
+      contactWebsite: page.contact_website,
+      updatedAt: page.updated_at,
+      createdAt: page.created_at,
+    }
+  } catch (error) {
+    console.error('Error fetching legal page:', error)
+    return null
+  }
+}
+
+// Loan Page Data Functions
+export async function getLoanProducts() {
+  try {
+    const products = await prisma.loan_products.findMany({
+      where: { is_active: true },
+      orderBy: { display_order: 'asc' },
+    })
+    return products
+  } catch (error) {
+    console.error('Error fetching loan products:', error)
+    return []
+  }
+}
+
+export async function getLoanProductBySlug(slug: string) {
+  try {
+    const product = await prisma.loan_products.findFirst({
+      where: { slug, is_active: true },
+    })
+    return product
+  } catch (error) {
+    console.error('Error fetching loan product by slug:', error)
+    return null
+  }
+}
+
+export async function getOtherLoanProducts(excludeSlug: string) {
+  try {
+    const products = await prisma.loan_products.findMany({
+      where: {
+        is_active: true,
+        slug: { not: excludeSlug }
+      },
+      orderBy: { display_order: 'asc' },
+    })
+    return products
+  } catch (error) {
+    console.error('Error fetching other loan products:', error)
+    return []
+  }
+}
+
+export async function getLoanPageWidgets() {
+  try {
+    const widgets = await prisma.loan_page_widgets.findMany({
+      where: { is_active: true },
+      orderBy: { display_order: 'asc' },
+    })
+    return widgets
+  } catch (error) {
+    console.error('Error fetching loan page widgets:', error)
+    return []
+  }
+}
+
+export async function getLoanPageSettings() {
+  try {
+    const settings = await prisma.loan_page_settings.findFirst({
+      where: { id: 1 },
+    })
+    return settings
+  } catch (error) {
+    console.error('Error fetching loan page settings:', error)
+    return null
+  }
+}
+
+// Lender Logos
+export async function getLenderLogos() {
+  try {
+    const [logos, settings] = await Promise.all([
+      prisma.lender_logos.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+        include: {
+          media: true,
+        },
+      }),
+      prisma.lender_logos_settings.findFirst({
+        where: { id: 1 },
+      }),
+    ])
+
+    return {
+      items: logos.map(logo => ({
+        id: logo.id,
+        name: logo.name,
+        logoUrl: logo.logo_url || (logo.media ? logo.media.url : null),
+        width: logo.width,
+        height: logo.height,
+      })),
+      sectionTitle: settings?.section_title || 'Trusted Lender Partners',
+    }
+  } catch (error) {
+    console.error('Error fetching lender logos:', error)
+    return { items: [], sectionTitle: 'Trusted Lender Partners' }
   }
 }

@@ -21,6 +21,11 @@ interface FeaturedLoan {
   features?: { text: string }[];
   order: number;
   isActive: boolean;
+  showDPA?: boolean;
+  dpaText?: string;
+  learnMoreEnabled?: boolean;
+  learnMoreUrl?: string;
+  learnMoreText?: string;
 }
 
 const iconOptions = [
@@ -98,6 +103,11 @@ export default function LoansPage() {
     features: [] as string[],
     order: 0,
     isActive: true,
+    showDPA: true,
+    dpaText: 'Down Payment Assistance Available',
+    learnMoreEnabled: false,
+    learnMoreUrl: '',
+    learnMoreText: 'Learn More',
   });
   const [saving, setSaving] = useState(false);
   const [newFeature, setNewFeature] = useState('');
@@ -183,6 +193,11 @@ export default function LoansPage() {
       features: [],
       order: loans.length,
       isActive: true,
+      showDPA: true,
+      dpaText: 'Down Payment Assistance Available',
+      learnMoreEnabled: false,
+      learnMoreUrl: '',
+      learnMoreText: 'Learn More',
     });
     setShowModal(true);
     setError('');
@@ -201,6 +216,11 @@ export default function LoansPage() {
       features: loan.features?.map((f) => f.text) || [],
       order: loan.order,
       isActive: loan.isActive,
+      showDPA: loan.showDPA ?? true,
+      dpaText: loan.dpaText || 'Down Payment Assistance Available',
+      learnMoreEnabled: loan.learnMoreEnabled ?? false,
+      learnMoreUrl: loan.learnMoreUrl || '',
+      learnMoreText: loan.learnMoreText || 'Learn More',
     });
     setShowModal(true);
     setError('');
@@ -595,7 +615,7 @@ export default function LoansPage() {
 
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Button Text
+                    Primary Button Text
                   </label>
                   <input
                     type="text"
@@ -604,8 +624,104 @@ export default function LoansPage() {
                     className={`w-full px-4 py-2.5 rounded-lg border ${
                       isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
                     } focus:ring-2 focus:ring-blue-500 outline-none`}
-                    placeholder="Learn More"
+                    placeholder="Start Your Conventional Loan"
                   />
+                </div>
+
+                {/* DPA Banner Section */}
+                <div className={`col-span-2 p-4 rounded-lg border ${isDark ? 'bg-gray-750 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      DPA Banner Overlay
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.showDPA}
+                        onChange={(e) => setFormData({ ...formData, showDPA: e.target.checked })}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Show
+                      </span>
+                    </label>
+                  </div>
+
+                  {formData.showDPA && (
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Banner Text
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.dpaText}
+                        onChange={(e) => setFormData({ ...formData, dpaText: e.target.value })}
+                        className={`w-full px-3 py-2 text-sm rounded-lg border ${
+                          isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
+                        } focus:ring-2 focus:ring-blue-500 outline-none`}
+                        placeholder="Down Payment Assistance Available"
+                      />
+                    </div>
+                  )}
+                  <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Shows a banner at the bottom of the loan image with custom text.
+                  </p>
+                </div>
+
+                {/* Learn More Button Section */}
+                <div className={`col-span-2 p-4 rounded-lg border ${isDark ? 'bg-gray-750 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Learn More Button
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.learnMoreEnabled}
+                        onChange={(e) => setFormData({ ...formData, learnMoreEnabled: e.target.checked })}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Enable
+                      </span>
+                    </label>
+                  </div>
+
+                  {formData.learnMoreEnabled && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Button Text
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.learnMoreText}
+                          onChange={(e) => setFormData({ ...formData, learnMoreText: e.target.value })}
+                          className={`w-full px-3 py-2 text-sm rounded-lg border ${
+                            isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
+                          } focus:ring-2 focus:ring-blue-500 outline-none`}
+                          placeholder="Learn More"
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          URL (Article Link)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.learnMoreUrl}
+                          onChange={(e) => setFormData({ ...formData, learnMoreUrl: e.target.value })}
+                          className={`w-full px-3 py-2 text-sm rounded-lg border ${
+                            isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
+                          } focus:ring-2 focus:ring-blue-500 outline-none`}
+                          placeholder="/blog/conventional-loans-guide"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Shows a secondary "Learn More" button that links to an article about this loan type.
+                  </p>
                 </div>
 
                 <div className="col-span-2">
