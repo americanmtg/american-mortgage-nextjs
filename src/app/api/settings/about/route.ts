@@ -33,7 +33,7 @@ export async function GET() {
           contactPhone: '(870) 926-4052',
           contactEmail: 'hello@americanmtg.com',
           contactAddress: '122 CR 7185, Jonesboro, AR 72405',
-          contactImage: '/images/am-logo-white.png',
+          contactImage: '/cms-media/png-01.png',
           ctaText: 'Start Your Application',
           ctaUrl: '/apply',
         },
@@ -58,7 +58,7 @@ export async function GET() {
         contactPhone: settings.contact_phone,
         contactEmail: settings.contact_email,
         contactAddress: settings.contact_address,
-        contactImage: (settings as any).contact_image || '/images/am-logo-white.png',
+        contactImage: (settings as any).contact_image || '/cms-media/png-01.png',
         ctaText: settings.cta_text,
         ctaUrl: settings.cta_url,
       },
@@ -79,7 +79,7 @@ export async function PUT(request: NextRequest) {
 
     const settings = await prisma.$executeRaw`
       INSERT INTO about_page_settings (id, hero_title, hero_subtitle, mission_title, mission_content, what_we_do_title, what_we_do_content, what_we_do_items, approach_title, approach_items, contact_title, contact_name, contact_nmls, contact_phone, contact_email, contact_address, contact_image, cta_text, cta_url, updated_at)
-      VALUES (1, ${body.heroTitle}, ${body.heroSubtitle}, ${body.missionTitle}, ${body.missionContent}, ${body.whatWeDoTitle}, ${body.whatWeDoContent}, ${JSON.stringify(body.whatWeDoItems)}::jsonb, ${body.approachTitle}, ${JSON.stringify(body.approachItems)}::jsonb, ${body.contactTitle}, ${body.contactName}, ${body.contactNmls}, ${body.contactPhone}, ${body.contactEmail}, ${body.contactAddress}, ${body.contactImage || '/images/am-logo-white.png'}, ${body.ctaText}, ${body.ctaUrl}, NOW())
+      VALUES (1, ${body.heroTitle}, ${body.heroSubtitle}, ${body.missionTitle}, ${body.missionContent}, ${body.whatWeDoTitle}, ${body.whatWeDoContent}, ${JSON.stringify(body.whatWeDoItems)}::jsonb, ${body.approachTitle}, ${JSON.stringify(body.approachItems)}::jsonb, ${body.contactTitle}, ${body.contactName}, ${body.contactNmls}, ${body.contactPhone}, ${body.contactEmail}, ${body.contactAddress}, ${body.contactImage || '/cms-media/png-01.png'}, ${body.ctaText}, ${body.ctaUrl}, NOW())
       ON CONFLICT (id) DO UPDATE SET
         hero_title = EXCLUDED.hero_title,
         hero_subtitle = EXCLUDED.hero_subtitle,

@@ -50,7 +50,7 @@ const DEFAULT_SETTINGS: AboutSettings = {
   contactPhone: '(870) 926-4052',
   contactEmail: 'hello@americanmtg.com',
   contactAddress: '122 CR 7185, Jonesboro, AR 72405',
-  contactImage: '/images/am-logo-white.png',
+  contactImage: '/cms-media/png-01.png',
   ctaText: 'Start Your Application',
   ctaUrl: '/apply',
 };
@@ -219,7 +219,7 @@ export default function AboutPage() {
                       <div className="flex-shrink-0">
                         <div className="w-14 h-14 bg-[#181F53] rounded-full flex items-center justify-center overflow-hidden">
                           <img
-                            src={settings.contactImage || '/images/am-logo-white.png'}
+                            src={settings.contactImage || '/cms-media/png-01.png'}
                             alt="American Mortgage"
                             className="w-full h-full object-cover"
                           />

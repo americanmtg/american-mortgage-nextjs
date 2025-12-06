@@ -50,7 +50,7 @@ const DEFAULT_SETTINGS: AboutSettings = {
   contactPhone: '(870) 926-4052',
   contactEmail: 'hello@americanmtg.com',
   contactAddress: '122 CR 7185, Jonesboro, AR 72405',
-  contactImage: '/images/am-logo-white.png',
+  contactImage: '/cms-media/png-01.png',
   ctaText: 'Start Your Application',
   ctaUrl: '/apply',
 };
