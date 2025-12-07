@@ -824,6 +824,7 @@ model about_page_settings {
   contact_phone      String?   @default("(870) 926-4052") @db.VarChar(50)
   contact_email      String?   @default("hello@americanmtg.com") @db.VarChar(255)
   contact_address    String?   @default("122 CR 7185, Jonesboro, AR 72405")
+  contact_image      String?   @default("/cms-media/png-01.png") @db.VarChar(500)
   cta_text           String?   @default("Start Your Application") @db.VarChar(255)
   cta_url            String?   @default("/apply") @db.VarChar(255)
   updated_at         DateTime? @default(now()) @db.Timestamptz(6)

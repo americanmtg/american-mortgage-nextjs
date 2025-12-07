@@ -4,6 +4,8 @@ import HeroSection from '@/components/HeroSection';
 import SnowEffectWrapper from '@/components/SnowEffectWrapper';
 import WhyAmericanMortgage from '@/components/WhyAmericanMortgage';
 import MoreLoansBanner from '@/components/MoreLoansBanner';
+import MortgageProcessSection from '@/components/MortgageProcessSection';
+import DirectoryBanner from '@/components/DirectoryBanner';
 
 export default async function Home() {
   const [recentPosts, featuredLoans, homepageSettings, lenderLogos] = await Promise.all([
@@ -89,6 +91,9 @@ export default async function Home() {
 
       {/* Why American Mortgage Section */}
       <WhyAmericanMortgage settings={homepageSettings?.whyChooseUs} />
+
+      {/* Four Step Mortgage Process Section */}
+      <MortgageProcessSection />
 
       {/* Featured Loans Section */}
       <section className="pt-8 pb-16 md:pt-12 md:pb-24 bg-white relative z-10">
@@ -236,6 +241,10 @@ export default async function Home() {
                 </svg>
               </Link>
             ))}
+          </div>
+          {/* Directory Banner - Review Options */}
+          <div className="mt-10">
+            <DirectoryBanner />
           </div>
         </div>
       </section>

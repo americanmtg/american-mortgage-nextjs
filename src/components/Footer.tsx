@@ -122,7 +122,7 @@ export default async function Footer() {
         </div>
 
         {/* Legal Text with Compliance Logos */}
-        <div className="text-xs text-grey-500 space-y-2 pt-6 border-t border-grey-700">
+        <div className="text-xs text-grey-500 space-y-1 pt-6 border-t border-grey-700">
           <p>
             {copyrightText.replace('{{year}}', new Date().getFullYear().toString())}
           </p>

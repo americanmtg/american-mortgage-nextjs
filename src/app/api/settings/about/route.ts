@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/api-auth';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Public: Fetch about page settings
 export async function GET() {
   try {
@@ -58,7 +60,7 @@ export async function GET() {
         contactPhone: settings.contact_phone,
         contactEmail: settings.contact_email,
         contactAddress: settings.contact_address,
-        contactImage: (settings as any).contact_image || '/cms-media/png-01.png',
+        contactImage: settings.contact_image || '/cms-media/png-01.png',
         ctaText: settings.cta_text,
         ctaUrl: settings.cta_url,
       },

@@ -2,19 +2,24 @@
 
 import styles from './SnowEffect.module.css';
 
-// Pre-generate snowflakes with staggered positions throughout the fall
+// Seeded pseudo-random for consistent snowflake positions
+function seededRandom(seed: number) {
+  const x = Math.sin(seed * 9999) * 10000;
+  return x - Math.floor(x);
+}
+
+// Pre-generate snowflakes with random positions, staggered across full cycle
 const snowflakes = Array.from({ length: 60 }, (_, i) => {
-  const duration = 8 + (i % 6) * 1.5; // 8-15.5s fall time
-  // Spread initial positions throughout the animation cycle
-  const initialProgress = (i / 60) * duration; // Distribute start times evenly
+  const duration = 8 + seededRandom(i + 100) * 7; // 8-15s fall time
+  // Spread delays across the full duration so snow is always falling
+  const delay = seededRandom(i + 200) * duration;
   return {
     id: i,
-    left: (i * 1.7 + Math.sin(i * 0.5) * 15) % 100,
-    size: 2 + (i % 4),
-    opacity: 0.35 + (i % 4) * 0.12,
+    left: seededRandom(i) * 100, // Random horizontal position 0-100%
+    size: 2 + seededRandom(i + 50) * 3, // 2-5px
+    opacity: 0.3 + seededRandom(i + 75) * 0.4, // 0.3-0.7
     duration,
-    delay: -initialProgress, // Negative delay starts animation mid-cycle
-    drift: ((i % 7) - 3) * 8,
+    delay,
   };
 });
 
@@ -32,7 +37,6 @@ export default function SnowEffect() {
             opacity: flake.opacity,
             animationDuration: `${flake.duration}s`,
             animationDelay: `${flake.delay}s`,
-            ['--drift' as string]: `${flake.drift}px`,
           }}
         />
       ))}

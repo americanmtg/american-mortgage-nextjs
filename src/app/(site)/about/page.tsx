@@ -249,7 +249,6 @@ export default function AboutPage() {
                             {settings.contactEmail}
                           </a>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">{settings.contactAddress}</p>
                       </div>
                     </div>
                     <Link
