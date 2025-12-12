@@ -376,6 +376,15 @@ model homepage_settings {
   more_loans_style              String?   @default("red") @db.VarChar(20)
   hero_mobile_gradient_enabled  Boolean?  @default(true)
   dpa_background_style          String?   @default("blue") @db.VarChar(20)
+  directory_banner_enabled      Boolean?  @default(true)
+  directory_banner_text         String?   @default("Need a trusted real estate professional?") @db.VarChar(500)
+  directory_banner_link_text    String?   @default("Browse our directory") @db.VarChar(100)
+  directory_banner_link_url     String?   @default("/directory") @db.VarChar(255)
+  process_enabled               Boolean?  @default(true)
+  process_eyebrow               String?   @default("How It Works") @db.VarChar(100)
+  process_headline              String?   @default("Your Path to Homeownership") @db.VarChar(255)
+  process_subheadline           String?   @default("We keep you informed at every step. No surprises, no confusion, just a clear path from pre-approval to closing day.") @db.VarChar(500)
+  process_steps                 Json?
 }
 
 model loan_officers {
@@ -857,4 +866,33 @@ enum enum_preapproval_status {
   authentic
   invalid
   expired
+}
+
+model meta_landing_page_settings {
+  id                        Int       @id @default(1)
+  notice_enabled            Boolean?  @default(true)
+  header_desktop_enabled    Boolean?  @default(true)
+  header_mobile_enabled     Boolean?  @default(true)
+  header_logo_centered_mobile Boolean?  @default(false)
+  menu_enabled              Boolean?  @default(true)
+  menu_items                Json?     @default("[]")
+  apply_button_desktop_enabled Boolean?  @default(true)
+  apply_button_mobile_enabled  Boolean?  @default(true)
+  apply_button_icon_enabled    Boolean?  @default(true)
+  apply_button_text         String?   @default("Apply Now") @db.VarChar(100)
+  apply_button_url          String?   @default("/apply") @db.VarChar(255)
+  apply_button_color        String?   @default("#d93c37") @db.VarChar(20)
+  apply_button_text_color   String?   @default("#ffffff") @db.VarChar(20)
+  heading_line1             String?   @default("Find Out") @db.VarChar(100)
+  heading_line2             String?   @default("Your Homebuying") @db.VarChar(100)
+  heading_line3             String?   @default("Budget Today") @db.VarChar(100)
+  description_text          String?   @default("Complete this quick pre-application to get a clear picture of your budget and start shopping for homes with confidence.")
+  cta_button_enabled        Boolean?  @default(true)
+  cta_button_icon_enabled   Boolean?  @default(true)
+  cta_button_text           String?   @default("Check My Budget") @db.VarChar(100)
+  cta_button_url            String?   @default("/apply") @db.VarChar(255)
+  cta_button_color          String?   @default("#d93c37") @db.VarChar(20)
+  cta_button_text_color     String?   @default("#ffffff") @db.VarChar(20)
+  updated_at                DateTime? @default(now()) @db.Timestamptz(6)
+  created_at                DateTime? @default(now()) @db.Timestamptz(6)
 }

@@ -82,6 +82,19 @@ interface HomepageSettings {
     title: string;
     subtitle: string;
   };
+  directoryBanner: {
+    enabled: boolean;
+    text: string;
+    linkText: string;
+    linkUrl: string;
+  };
+  process: {
+    enabled: boolean;
+    eyebrow: string;
+    headline: string;
+    subheadline: string;
+    steps: { title: string; description: string }[];
+  };
 }
 
 const defaultSettings: HomepageSettings = {
@@ -175,6 +188,24 @@ const defaultSettings: HomepageSettings = {
     title: 'Latest Articles',
     subtitle: 'Tips and guides for homebuyers',
   },
+  directoryBanner: {
+    enabled: true,
+    text: 'Need a trusted real estate professional?',
+    linkText: 'Browse our directory',
+    linkUrl: '/directory',
+  },
+  process: {
+    enabled: true,
+    eyebrow: 'How It Works',
+    headline: 'Your Path to Homeownership',
+    subheadline: 'We keep you informed at every step. No surprises, no confusion, just a clear path from pre-approval to closing day.',
+    steps: [
+      { title: 'Get Pre-Approved', description: 'Know your budget and shop with confidence. A strong pre-approval makes your offer stand out.' },
+      { title: 'Find Your Home', description: 'Once you are under contract, we order the appraisal and start building your loan file.' },
+      { title: 'Loan Processing', description: 'We handle the paperwork, verify your documents, and guide your file through underwriting.' },
+      { title: 'Close and Get Keys', description: 'Sign your final documents and walk away with the keys to your new home.' },
+    ],
+  },
 };
 
 export default function HomepagePage() {
@@ -218,6 +249,12 @@ export default function HomepagePage() {
             },
             moreLoans: { ...defaultSettings.moreLoans, ...result.data.moreLoans },
             articles: { ...defaultSettings.articles, ...result.data.articles },
+            directoryBanner: { ...defaultSettings.directoryBanner, ...result.data.directoryBanner },
+            process: {
+              ...defaultSettings.process,
+              ...result.data.process,
+              steps: result.data.process?.steps || defaultSettings.process.steps,
+            },
           });
         }
       }
@@ -383,7 +420,9 @@ export default function HomepagePage() {
   const sections = [
     { id: 'hero', label: 'Hero Section' },
     { id: 'whyChooseUs', label: 'Why Choose Us' },
+    { id: 'process', label: 'How It Works' },
     { id: 'featuredLoans', label: 'Featured Loans' },
+    { id: 'directoryBanner', label: 'Directory Banner' },
     { id: 'dpa', label: 'Down Payment Assistance' },
     { id: 'tools', label: 'Tools & Calculators' },
     { id: 'moreLoans', label: 'More Loan Options' },
@@ -1361,6 +1400,208 @@ export default function HomepagePage() {
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Note: The actual articles are managed in the <a href="/admin/blog" className="text-blue-600 hover:underline">Blog</a> section.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Directory Banner Section */}
+      {activeSection === 'directoryBanner' && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Directory Banner</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            This gold banner appears below the featured loans section, promoting the professional directory.
+          </p>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="directoryBannerEnabled"
+                checked={settings.directoryBanner.enabled}
+                onChange={(e) => setSettings(prev => ({
+                  ...prev,
+                  directoryBanner: { ...prev.directoryBanner, enabled: e.target.checked }
+                }))}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              <label htmlFor="directoryBannerEnabled" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Show Directory Banner
+              </label>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Banner Text
+              </label>
+              <input
+                type="text"
+                value={settings.directoryBanner.text}
+                onChange={(e) => setSettings(prev => ({
+                  ...prev,
+                  directoryBanner: { ...prev.directoryBanner, text: e.target.value }
+                }))}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                placeholder="Need a trusted real estate professional?"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Link Text
+              </label>
+              <input
+                type="text"
+                value={settings.directoryBanner.linkText}
+                onChange={(e) => setSettings(prev => ({
+                  ...prev,
+                  directoryBanner: { ...prev.directoryBanner, linkText: e.target.value }
+                }))}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                placeholder="Browse our directory"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Link URL
+              </label>
+              <input
+                type="text"
+                value={settings.directoryBanner.linkUrl}
+                onChange={(e) => setSettings(prev => ({
+                  ...prev,
+                  directoryBanner: { ...prev.directoryBanner, linkUrl: e.target.value }
+                }))}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                placeholder="/directory"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* How It Works / Process Section */}
+      {activeSection === 'process' && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">How It Works Section</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            This section shows a 4-step timeline of the mortgage process.
+          </p>
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="processEnabled"
+                checked={settings.process.enabled}
+                onChange={(e) => setSettings(prev => ({
+                  ...prev,
+                  process: { ...prev.process, enabled: e.target.checked }
+                }))}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300"
+              />
+              <label htmlFor="processEnabled" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Show How It Works Section
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Eyebrow Text
+                </label>
+                <input
+                  type="text"
+                  value={settings.process.eyebrow}
+                  onChange={(e) => setSettings(prev => ({
+                    ...prev,
+                    process: { ...prev.process, eyebrow: e.target.value }
+                  }))}
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                  placeholder="How It Works"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Headline
+                </label>
+                <input
+                  type="text"
+                  value={settings.process.headline}
+                  onChange={(e) => setSettings(prev => ({
+                    ...prev,
+                    process: { ...prev.process, headline: e.target.value }
+                  }))}
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                  placeholder="Your Path to Homeownership"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Subheadline
+              </label>
+              <textarea
+                value={settings.process.subheadline}
+                onChange={(e) => setSettings(prev => ({
+                  ...prev,
+                  process: { ...prev.process, subheadline: e.target.value }
+                }))}
+                rows={2}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
+                placeholder="We keep you informed at every step..."
+              />
+            </div>
+
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+              <h3 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Process Steps</h3>
+              <div className="space-y-4">
+                {settings.process.steps.map((step, index) => (
+                  <div key={index} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${index === 3 ? 'bg-red-500' : 'bg-[#181F53]'}`}>
+                        {index + 1}
+                      </div>
+                      <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Step {index + 1}</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Title
+                        </label>
+                        <input
+                          type="text"
+                          value={step.title}
+                          onChange={(e) => {
+                            const newSteps = [...settings.process.steps];
+                            newSteps[index] = { ...newSteps[index], title: e.target.value };
+                            setSettings(prev => ({
+                              ...prev,
+                              process: { ...prev.process, steps: newSteps }
+                            }));
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Description
+                        </label>
+                        <input
+                          type="text"
+                          value={step.description}
+                          onChange={(e) => {
+                            const newSteps = [...settings.process.steps];
+                            newSteps[index] = { ...newSteps[index], description: e.target.value };
+                            setSettings(prev => ({
+                              ...prev,
+                              process: { ...prev.process, steps: newSteps }
+                            }));
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

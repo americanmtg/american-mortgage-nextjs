@@ -5,7 +5,17 @@ import Link from 'next/link';
  * Gold gradient style matching the hero eyebrow color
  */
 
-export default function DirectoryBanner() {
+interface DirectoryBannerProps {
+  text?: string;
+  linkText?: string;
+  linkUrl?: string;
+}
+
+export default function DirectoryBanner({
+  text = 'Need a trusted real estate professional?',
+  linkText = 'Browse our directory',
+  linkUrl = '/directory'
+}: DirectoryBannerProps) {
   return (
     <div className="w-full max-w-3xl mx-auto">
       <div className="w-full bg-gradient-to-r from-[#fed560] to-[#f5c842] rounded-xl px-6 py-5 text-center flex items-center justify-center">
@@ -16,8 +26,8 @@ export default function DirectoryBanner() {
             </svg>
           </div>
           <p className="text-[#181F53] text-base font-medium" style={{ fontFamily: "'Open Sans', sans-serif" }}>
-            <span className="hidden md:inline">Need a trusted real estate professional? <Link href="/directory" className="text-[#181F53] hover:text-[#0f1438] font-bold underline underline-offset-2">Browse our directory</Link></span>
-            <span className="md:hidden">Need a real estate professional?<br /><Link href="/directory" className="text-[#181F53] hover:text-[#0f1438] font-bold underline underline-offset-2">Browse our directory</Link></span>
+            <span className="hidden md:inline">{text} <Link href={linkUrl} className="text-[#181F53] hover:text-[#0f1438] font-bold underline underline-offset-2">{linkText}</Link></span>
+            <span className="md:hidden">{text}<br /><Link href={linkUrl} className="text-[#181F53] hover:text-[#0f1438] font-bold underline underline-offset-2">{linkText}</Link></span>
           </p>
         </div>
       </div>

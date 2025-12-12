@@ -1,39 +1,45 @@
 /**
- * MortgageProcessSection - Static design for review
- * A polished four-step horizontal timeline showing the mortgage process
- *
- * Design Notes:
- * - Light grey background (#f9fafb) to contrast with white sections
- * - Navy (#181F53) and red (#d93c37) brand colors
- * - Open Sans for body text, Lora for headlines (matching site)
- * - Clean modern spacing with premium feel
- * - Responsive: horizontal on desktop, vertical stack on mobile
+ * MortgageProcessSection - Editable four-step timeline
+ * A polished horizontal timeline showing the mortgage process
  */
 
-export default function MortgageProcessSection() {
-  const steps = [
-    {
-      number: 1,
-      title: 'Get Pre-Approved',
-      description: 'Know your budget and shop with confidence. A strong pre-approval makes your offer stand out.',
-    },
-    {
-      number: 2,
-      title: 'Find Your Home',
-      description: 'Once you are under contract, we order the appraisal and start building your loan file.',
-    },
-    {
-      number: 3,
-      title: 'Loan Processing',
-      description: 'We handle the paperwork, verify your documents, and guide your file through underwriting.',
-    },
-    {
-      number: 4,
-      title: 'Close and Get Keys',
-      description: 'Sign your final documents and walk away with the keys to your new home.',
-    },
-  ];
+interface ProcessStep {
+  title: string;
+  description: string;
+}
 
+interface MortgageProcessSectionProps {
+  eyebrow?: string;
+  headline?: string;
+  subheadline?: string;
+  steps?: ProcessStep[];
+}
+
+const defaultSteps: ProcessStep[] = [
+  {
+    title: 'Get Pre-Approved',
+    description: 'Know your budget and shop with confidence. A strong pre-approval makes your offer stand out.',
+  },
+  {
+    title: 'Find Your Home',
+    description: 'Once you are under contract, we order the appraisal and start building your loan file.',
+  },
+  {
+    title: 'Loan Processing',
+    description: 'We handle the paperwork, verify your documents, and guide your file through underwriting.',
+  },
+  {
+    title: 'Close and Get Keys',
+    description: 'Sign your final documents and walk away with the keys to your new home.',
+  },
+];
+
+export default function MortgageProcessSection({
+  eyebrow = 'How It Works',
+  headline = 'Your Path to Homeownership',
+  subheadline = 'We keep you informed at every step. No surprises, no confusion, just a clear path from pre-approval to closing day.',
+  steps = defaultSteps
+}: MortgageProcessSectionProps) {
   return (
     <section className="bg-grey-50 py-16 md:py-24">
       <div className="container-custom">
@@ -43,7 +49,7 @@ export default function MortgageProcessSection() {
             className="block text-red text-[18px] font-bold tracking-[0.15em] uppercase mb-3 md:mb-4"
             style={{ fontFamily: "'Open Sans', sans-serif" }}
           >
-            How It Works
+            {eyebrow}
           </span>
 
           {/* Desktop Headline */}
@@ -56,7 +62,7 @@ export default function MortgageProcessSection() {
               lineHeight: '56px'
             }}
           >
-            Your Path to <span className="text-[#02327d]">Homeownership</span>
+            {headline}
           </h2>
 
           {/* Mobile Headline */}
@@ -69,7 +75,7 @@ export default function MortgageProcessSection() {
               lineHeight: '40px'
             }}
           >
-            Your Path to <span className="text-[#02327d]">Homeownership</span>
+            {headline}
           </h2>
 
           <p
@@ -80,8 +86,7 @@ export default function MortgageProcessSection() {
               lineHeight: '28px'
             }}
           >
-            We keep you informed at every step. No surprises, no confusion, just
-            a clear path from pre-approval to closing day.
+            {subheadline}
           </p>
         </div>
 
@@ -94,7 +99,7 @@ export default function MortgageProcessSection() {
             {/* Steps Grid */}
             <div className="grid grid-cols-4 gap-6">
               {steps.map((step, index) => (
-                <div key={step.number} className="relative flex flex-col items-center text-center">
+                <div key={index} className="relative flex flex-col items-center text-center">
                   {/* Number Circle */}
                   <div
                     className={`
@@ -104,7 +109,7 @@ export default function MortgageProcessSection() {
                     `}
                     style={{ fontFamily: "'Open Sans', sans-serif" }}
                   >
-                    {step.number}
+                    {index + 1}
                   </div>
 
                   {/* Step Title */}
@@ -137,7 +142,7 @@ export default function MortgageProcessSection() {
             {/* Steps Grid */}
             <div className="grid grid-cols-4 gap-4">
               {steps.map((step, index) => (
-                <div key={step.number} className="relative flex flex-col items-center text-center">
+                <div key={index} className="relative flex flex-col items-center text-center">
                   {/* Number Circle */}
                   <div
                     className={`
@@ -147,7 +152,7 @@ export default function MortgageProcessSection() {
                     `}
                     style={{ fontFamily: "'Open Sans', sans-serif" }}
                   >
-                    {step.number}
+                    {index + 1}
                   </div>
 
                   {/* Step Title */}
@@ -180,7 +185,7 @@ export default function MortgageProcessSection() {
             {/* Steps */}
             <div className="space-y-10">
               {steps.map((step, index) => (
-                <div key={step.number} className="relative flex items-start gap-5">
+                <div key={index} className="relative flex items-start gap-5">
                   {/* Number Circle */}
                   <div
                     className={`
@@ -190,7 +195,7 @@ export default function MortgageProcessSection() {
                     `}
                     style={{ fontFamily: "'Open Sans', sans-serif" }}
                   >
-                    {step.number}
+                    {index + 1}
                   </div>
 
                   {/* Content */}

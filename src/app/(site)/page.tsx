@@ -93,7 +93,14 @@ export default async function Home() {
       <WhyAmericanMortgage settings={homepageSettings?.whyChooseUs} />
 
       {/* Four Step Mortgage Process Section */}
-      <MortgageProcessSection />
+      {homepageSettings?.process?.enabled !== false && (
+        <MortgageProcessSection
+          eyebrow={homepageSettings?.process?.eyebrow}
+          headline={homepageSettings?.process?.headline}
+          subheadline={homepageSettings?.process?.subheadline}
+          steps={homepageSettings?.process?.steps}
+        />
+      )}
 
       {/* Featured Loans Section */}
       <section className="pt-8 pb-16 md:pt-12 md:pb-24 bg-white relative z-10">
@@ -243,9 +250,15 @@ export default async function Home() {
             ))}
           </div>
           {/* Directory Banner - Review Options */}
-          <div className="mt-10">
-            <DirectoryBanner />
-          </div>
+          {homepageSettings?.directoryBanner?.enabled !== false && (
+            <div className="mt-10">
+              <DirectoryBanner
+                text={homepageSettings?.directoryBanner?.text}
+                linkText={homepageSettings?.directoryBanner?.linkText}
+                linkUrl={homepageSettings?.directoryBanner?.linkUrl}
+              />
+            </div>
+          )}
         </div>
       </section>
       {recentPosts && recentPosts.length > 0 && (

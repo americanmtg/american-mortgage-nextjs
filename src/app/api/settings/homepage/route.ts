@@ -95,6 +95,26 @@ export async function GET() {
       },
       // Why Choose Us Section
       whyChooseUs: settings.why_choose_us || null,
+      // Directory Banner
+      directoryBanner: {
+        enabled: settings.directory_banner_enabled ?? true,
+        text: settings.directory_banner_text || 'Need a trusted real estate professional?',
+        linkText: settings.directory_banner_link_text || 'Browse our directory',
+        linkUrl: settings.directory_banner_link_url || '/directory',
+      },
+      // Process / How It Works Section
+      process: {
+        enabled: settings.process_enabled ?? true,
+        eyebrow: settings.process_eyebrow || 'How It Works',
+        headline: settings.process_headline || 'Your Path to Homeownership',
+        subheadline: settings.process_subheadline || 'We keep you informed at every step. No surprises, no confusion, just a clear path from pre-approval to closing day.',
+        steps: (settings.process_steps as any[]) || [
+          { title: 'Get Pre-Approved', description: 'Know your budget and shop with confidence. A strong pre-approval makes your offer stand out.' },
+          { title: 'Find Your Home', description: 'Once you are under contract, we order the appraisal and start building your loan file.' },
+          { title: 'Loan Processing', description: 'We handle the paperwork, verify your documents, and guide your file through underwriting.' },
+          { title: 'Close and Get Keys', description: 'Sign your final documents and walk away with the keys to your new home.' },
+        ],
+      },
       updatedAt: settings.updated_at,
     })
   } catch (error) {
@@ -110,7 +130,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { hero, featuredLoans, whyChooseUs, dpa, tools, moreLoans, articles } = body
+    const { hero, featuredLoans, whyChooseUs, dpa, tools, moreLoans, articles, directoryBanner, process } = body
 
     // Find existing settings or create new
     const existing = await prisma.homepage_settings.findFirst()
@@ -171,6 +191,19 @@ export async function PUT(request: NextRequest) {
       // Latest Articles Section
       ...(articles?.title !== undefined && { articles_title: articles.title }),
       ...(articles?.subtitle !== undefined && { articles_subtitle: articles.subtitle }),
+
+      // Directory Banner
+      ...(directoryBanner?.enabled !== undefined && { directory_banner_enabled: directoryBanner.enabled }),
+      ...(directoryBanner?.text !== undefined && { directory_banner_text: directoryBanner.text }),
+      ...(directoryBanner?.linkText !== undefined && { directory_banner_link_text: directoryBanner.linkText }),
+      ...(directoryBanner?.linkUrl !== undefined && { directory_banner_link_url: directoryBanner.linkUrl }),
+
+      // Process / How It Works Section
+      ...(process?.enabled !== undefined && { process_enabled: process.enabled }),
+      ...(process?.eyebrow !== undefined && { process_eyebrow: process.eyebrow }),
+      ...(process?.headline !== undefined && { process_headline: process.headline }),
+      ...(process?.subheadline !== undefined && { process_subheadline: process.subheadline }),
+      ...(process?.steps !== undefined && { process_steps: process.steps }),
 
       updated_at: new Date(),
     }
@@ -264,6 +297,24 @@ export async function PUT(request: NextRequest) {
         subtitle: settings.articles_subtitle,
       },
       whyChooseUs: settings.why_choose_us || null,
+      directoryBanner: {
+        enabled: settings.directory_banner_enabled ?? true,
+        text: settings.directory_banner_text || 'Need a trusted real estate professional?',
+        linkText: settings.directory_banner_link_text || 'Browse our directory',
+        linkUrl: settings.directory_banner_link_url || '/directory',
+      },
+      process: {
+        enabled: settings.process_enabled ?? true,
+        eyebrow: settings.process_eyebrow || 'How It Works',
+        headline: settings.process_headline || 'Your Path to Homeownership',
+        subheadline: settings.process_subheadline || 'We keep you informed at every step. No surprises, no confusion, just a clear path from pre-approval to closing day.',
+        steps: (settings.process_steps as any[]) || [
+          { title: 'Get Pre-Approved', description: 'Know your budget and shop with confidence. A strong pre-approval makes your offer stand out.' },
+          { title: 'Find Your Home', description: 'Once you are under contract, we order the appraisal and start building your loan file.' },
+          { title: 'Loan Processing', description: 'We handle the paperwork, verify your documents, and guide your file through underwriting.' },
+          { title: 'Close and Get Keys', description: 'Sign your final documents and walk away with the keys to your new home.' },
+        ],
+      },
       updatedAt: settings.updated_at,
     })
   } catch (error) {

@@ -3,11 +3,8 @@ import { requireAuth, errorResponse, successResponse } from '@/lib/api-auth'
 import prisma from '@/lib/prisma'
 import { v4 as uuidv4 } from 'uuid'
 
-// GET - Get footer settings
+// GET - Get footer settings (public for frontend)
 export async function GET() {
-  const auth = await requireAuth()
-  if (!auth.authenticated) return auth.response
-
   try {
     const footer = await prisma.footer.findFirst({
       include: {

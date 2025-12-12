@@ -211,12 +211,12 @@ export default async function Header() {
           {/* Desktop Header */}
           <div className="hidden md:flex items-center justify-between h-20">
             {/* Logo */}
-            <Link
-              href="/"
-              className="flex-shrink-0 flex items-center"
-              style={{ height: `${logoHeight}px` }}
-            >
-              {logoUrl && (
+            {logoUrl && (
+              <Link
+                href="/"
+                className="flex-shrink-0 flex items-center"
+                style={{ height: `${logoHeight}px` }}
+              >
                 <Image
                   src={logoUrl}
                   alt="American Mortgage"
@@ -229,8 +229,8 @@ export default async function Header() {
                     width: 'auto'
                   }}
                 />
-              )}
-            </Link>
+              </Link>
+            )}
 
             {/* Desktop Navigation */}
             <nav className="flex items-center gap-8">
@@ -285,12 +285,12 @@ export default async function Header() {
           <div className="md:hidden">
             {/* Top row: Logo, Apply Now button, Hamburger */}
             <div className="flex items-center justify-between h-16">
-              <Link
-                href="/"
-                className="flex-shrink-0 flex items-center"
-                style={{ height: `${logoHeightMobile}px` }}
-              >
-                {logoUrl && (
+              {logoUrl && (
+                <Link
+                  href="/"
+                  className="flex-shrink-0 flex items-center"
+                  style={{ height: `${logoHeightMobile}px` }}
+                >
                   <Image
                     src={logoUrl}
                     alt="American Mortgage"
@@ -303,8 +303,8 @@ export default async function Header() {
                       width: 'auto'
                     }}
                   />
-                )}
-              </Link>
+                </Link>
+              )}
               <div className="flex items-center gap-3">
                 <Link
                   href={buttonUrl}

@@ -198,6 +198,24 @@ export async function getHomepageSettings() {
         subtitle: settings.articles_subtitle || 'Tips and guides for homebuyers',
       },
       whyChooseUs: settings.why_choose_us as any || null,
+      directoryBanner: {
+        enabled: settings.directory_banner_enabled ?? true,
+        text: settings.directory_banner_text || 'Need a trusted real estate professional?',
+        linkText: settings.directory_banner_link_text || 'Browse our directory',
+        linkUrl: settings.directory_banner_link_url || '/directory',
+      },
+      process: {
+        enabled: settings.process_enabled ?? true,
+        eyebrow: settings.process_eyebrow || 'How It Works',
+        headline: settings.process_headline || 'Your Path to Homeownership',
+        subheadline: settings.process_subheadline || 'We keep you informed at every step. No surprises, no confusion, just a clear path from pre-approval to closing day.',
+        steps: (settings.process_steps as any[]) || [
+          { title: 'Get Pre-Approved', description: 'Know your budget and shop with confidence. A strong pre-approval makes your offer stand out.' },
+          { title: 'Find Your Home', description: 'Once you are under contract, we order the appraisal and start building your loan file.' },
+          { title: 'Loan Processing', description: 'We handle the paperwork, verify your documents, and guide your file through underwriting.' },
+          { title: 'Close and Get Keys', description: 'Sign your final documents and walk away with the keys to your new home.' },
+        ],
+      },
       updatedAt: settings.updated_at,
     }
   } catch (error) {
@@ -965,5 +983,93 @@ export async function getLenderLogos() {
   } catch (error) {
     console.error('Error fetching lender logos:', error)
     return { items: [], sectionTitle: 'Trusted Lender Partners' }
+  }
+}
+
+// Meta Landing Page Settings
+export async function getMetaLandingSettings() {
+  try {
+    const settings = await prisma.meta_landing_page_settings.findFirst()
+
+    if (!settings) {
+      return {
+        noticeEnabled: true,
+        headerDesktopEnabled: true,
+        headerMobileEnabled: true,
+        menuEnabled: true,
+        menuItems: [] as { label: string; url: string; openInNewTab?: boolean }[],
+        applyButton: {
+          text: 'Apply Now',
+          url: '/apply',
+          color: '#d93c37',
+          textColor: '#ffffff',
+        },
+        heading: {
+          line1: 'Find Out',
+          line2: 'Your Homebuying',
+          line3: 'Budget Today',
+        },
+        description: 'Complete this quick pre-application to get a clear picture of your budget and start shopping for homes with confidence.',
+        ctaButton: {
+          text: 'Check My Budget',
+          url: '/apply',
+          color: '#d93c37',
+          textColor: '#ffffff',
+        },
+      }
+    }
+
+    return {
+      noticeEnabled: settings.notice_enabled ?? true,
+      headerDesktopEnabled: settings.header_desktop_enabled ?? true,
+      headerMobileEnabled: settings.header_mobile_enabled ?? true,
+      menuEnabled: settings.menu_enabled ?? true,
+      menuItems: (settings.menu_items as { label: string; url: string; openInNewTab?: boolean }[]) || [],
+      applyButton: {
+        text: settings.apply_button_text || 'Apply Now',
+        url: settings.apply_button_url || '/apply',
+        color: settings.apply_button_color || '#d93c37',
+        textColor: settings.apply_button_text_color || '#ffffff',
+      },
+      heading: {
+        line1: settings.heading_line1 || 'Find Out',
+        line2: settings.heading_line2 || 'Your Homebuying',
+        line3: settings.heading_line3 || 'Budget Today',
+      },
+      description: settings.description_text || 'Complete this quick pre-application to get a clear picture of your budget and start shopping for homes with confidence.',
+      ctaButton: {
+        text: settings.cta_button_text || 'Check My Budget',
+        url: settings.cta_button_url || '/apply',
+        color: settings.cta_button_color || '#d93c37',
+        textColor: settings.cta_button_text_color || '#ffffff',
+      },
+    }
+  } catch (error) {
+    console.error('Error fetching meta landing settings:', error)
+    return {
+      noticeEnabled: true,
+      headerDesktopEnabled: true,
+      headerMobileEnabled: true,
+      menuEnabled: true,
+      menuItems: [] as { label: string; url: string; openInNewTab?: boolean }[],
+      applyButton: {
+        text: 'Apply Now',
+        url: '/apply',
+        color: '#d93c37',
+        textColor: '#ffffff',
+      },
+      heading: {
+        line1: 'Find Out',
+        line2: 'Your Homebuying',
+        line3: 'Budget Today',
+      },
+      description: 'Complete this quick pre-application to get a clear picture of your budget and start shopping for homes with confidence.',
+      ctaButton: {
+        text: 'Check My Budget',
+        url: '/apply',
+        color: '#d93c37',
+        textColor: '#ffffff',
+      },
+    }
   }
 }
