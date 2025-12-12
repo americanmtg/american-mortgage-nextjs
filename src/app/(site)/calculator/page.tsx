@@ -649,7 +649,7 @@ export default function CalculatorPage() {
                   cursor: 'pointer',
                   fontSize: '14px',
                   fontWeight: '600',
-                  color: '#181F53',
+                  color: '#d93c37',
                 }}
               >
                 <span>Advanced Settings</span>
@@ -658,7 +658,7 @@ export default function CalculatorPage() {
                   height="16"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="currentColor"
+                  stroke="#d93c37"
                   strokeWidth="2"
                   style={{
                     transform: advancedOpen ? 'rotate(180deg)' : 'rotate(0deg)',
