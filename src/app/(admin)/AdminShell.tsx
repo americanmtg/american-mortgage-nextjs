@@ -173,6 +173,18 @@ const AboutIcon = () => (
   </svg>
 );
 
+const CalculatorIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V13.5zm0 2.25h.008v.008H8.25v-.008zm0 2.25h.008v.008H8.25V18zm2.498-6.75h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V13.5zm0 2.25h.007v.008h-.007v-.008zm0 2.25h.007v.008h-.007V18zm2.504-6.75h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V13.5zm3.75-8.25H6.75a2.25 2.25 0 00-2.25 2.25v10.5a2.25 2.25 0 002.25 2.25h10.5a2.25 2.25 0 002.25-2.25V7.5a2.25 2.25 0 00-2.25-2.25zM6.75 9h10.5v-1.5H6.75V9z" />
+  </svg>
+);
+
+const MetaLandingIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.58-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+  </svg>
+);
+
 const menuItems: MenuItem[] = [
   { label: 'Dashboard', href: '/admin', icon: DashboardIcon },
   { label: 'Menu', href: '/admin/menu', icon: MenuIcon, roles: ['admin'] },
@@ -188,6 +200,8 @@ const menuItems: MenuItem[] = [
   { label: 'Pre-Approval Letters', href: '/admin/preapproval-letters', icon: PreapprovalIcon, roles: ['admin'] },
   { label: 'Homepage', href: '/admin/homepage', icon: HomepageIcon, roles: ['admin'] },
   { label: 'About Page', href: '/admin/about', icon: AboutIcon, roles: ['admin'] },
+  { label: 'Calculator', href: '/admin/calculator', icon: CalculatorIcon, roles: ['admin'] },
+  { label: 'Meta Landing', href: '/admin/meta-landing', icon: MetaLandingIcon, roles: ['admin'] },
   { label: 'Lender Logos', href: '/admin/lender-logos', icon: LenderLogosIcon, roles: ['admin'] },
   { label: 'Header', href: '/admin/header', icon: HeaderIcon, roles: ['admin'] },
   { label: 'SEO', href: '/admin/seo', icon: SeoIcon, roles: ['admin'] },
