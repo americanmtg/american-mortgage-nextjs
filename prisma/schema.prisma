@@ -944,6 +944,27 @@ model calculator_settings {
   mip_subtext               String?   @default("Required for FHA loans ({rate}% annually)") @db.VarChar(255)
   pmi_label                 String?   @default("Private Mortgage Insurance (PMI)") @db.VarChar(100)
   pmi_subtext               String?   @default("Required until 20% equity ({rate}% annually)") @db.VarChar(255)
+  // Quote settings
+  quote_phone_required      Boolean?  @default(true)
+  quote_email_required      Boolean?  @default(true)
+  // Homestead credit
+  homestead_tax_credit      Decimal?  @default(600) @db.Decimal(10, 2)
+  // Disclaimer
+  disclaimer_text           String?
+  disclaimer_collapsible    Boolean?  @default(true)
+  // CTA settings
+  cta_text_enabled          Boolean?  @default(true)
+  // Slider settings
+  slider_color              String?   @default("#181F53") @db.VarChar(20)
+  slider_max_purchase_price Int?      @default(1000000)
+  // Download quote button
+  download_quote_button_text       String?   @default("Download Quote") @db.VarChar(100)
+  download_quote_button_color      String?   @default("#DC2626") @db.VarChar(20)
+  download_quote_button_full_width Boolean?  @default(true)
+  // Quote form
+  quote_form_button_color   String?   @default("#181F53") @db.VarChar(20)
+  // FAQ items as JSON array
+  faq_items                 Json?     @default("[]")
   // Timestamps
   updated_at                DateTime? @default(now()) @db.Timestamptz(6)
   created_at                DateTime? @default(now()) @db.Timestamptz(6)

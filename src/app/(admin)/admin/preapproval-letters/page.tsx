@@ -43,7 +43,7 @@ interface VerifyPageSettings {
   defaultContactPhoto: string | null;
 }
 
-type TabType = 'letters' | 'officers' | 'settings';
+type TabType = 'letters' | 'settings';
 
 export default function PreapprovalLettersPage() {
   const { isDark } = useTheme();
@@ -86,24 +86,8 @@ export default function PreapprovalLettersPage() {
   const [deleteLetterConfirm, setDeleteLetterConfirm] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('');
 
-  // Officers state
+  // Officers state (for dropdown selection only - manage officers at /admin/loan-officers)
   const [officers, setOfficers] = useState<LoanOfficer[]>([]);
-  const [officersLoading, setOfficersLoading] = useState(true);
-  const [showOfficerModal, setShowOfficerModal] = useState(false);
-  const [editingOfficer, setEditingOfficer] = useState<LoanOfficer | null>(null);
-  const [officerFormData, setOfficerFormData] = useState({
-    name: '',
-    nmlsId: '',
-    phone: '',
-    email: '',
-    photoId: null as number | null,
-    photoUrl: null as string | null,
-    isActive: true,
-  });
-  const [officerSaving, setOfficerSaving] = useState(false);
-  const [deleteOfficerConfirm, setDeleteOfficerConfirm] = useState<number | null>(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [error, setError] = useState('');
 
@@ -133,13 +117,9 @@ export default function PreapprovalLettersPage() {
       const json = await res.json();
       if (res.ok && json.data) {
         setOfficers(json.data.items);
-      } else {
-        setError(json.error || 'Failed to fetch loan officers');
       }
     } catch (err) {
-      setError('Failed to fetch loan officers');
-    } finally {
-      setOfficersLoading(false);
+      // Silently fail - officers are optional for dropdown
     }
   };
 
@@ -300,152 +280,6 @@ export default function PreapprovalLettersPage() {
     setError('');
   };
 
-  // Officer handlers
-  const handleOfficerSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setOfficerSaving(true);
-    setError('');
-
-    try {
-      const url = editingOfficer
-        ? `/api/loan-officers/${editingOfficer.id}`
-        : '/api/loan-officers';
-      const method = editingOfficer ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: officerFormData.name,
-          nmlsId: officerFormData.nmlsId || null,
-          phone: officerFormData.phone,
-          email: officerFormData.email,
-          photoId: officerFormData.photoId,
-          isActive: officerFormData.isActive,
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        setError(json.error || 'Failed to save loan officer');
-        return;
-      }
-
-      await fetchOfficers();
-      closeOfficerModal();
-    } catch (err) {
-      setError('Failed to save loan officer');
-    } finally {
-      setOfficerSaving(false);
-    }
-  };
-
-  const handleDeleteOfficer = async (id: number) => {
-    try {
-      const res = await fetch(`/api/loan-officers/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!res.ok) {
-        const json = await res.json();
-        setError(json.error || 'Failed to delete loan officer');
-        return;
-      }
-
-      await fetchOfficers();
-      setDeleteOfficerConfirm(null);
-    } catch (err) {
-      setError('Failed to delete loan officer');
-    }
-  };
-
-  const openAddOfficerModal = () => {
-    setEditingOfficer(null);
-    setOfficerFormData({
-      name: '',
-      nmlsId: '',
-      phone: '',
-      email: '',
-      photoId: null,
-      photoUrl: null,
-      isActive: true,
-    });
-    setShowOfficerModal(true);
-    setError('');
-  };
-
-  const openEditOfficerModal = (officer: LoanOfficer) => {
-    setEditingOfficer(officer);
-    setOfficerFormData({
-      name: officer.name,
-      nmlsId: officer.nmlsId || '',
-      phone: officer.phone,
-      email: officer.email,
-      photoId: officer.photoId,
-      photoUrl: officer.photoUrl,
-      isActive: officer.isActive,
-    });
-    setShowOfficerModal(true);
-    setError('');
-  };
-
-  const closeOfficerModal = () => {
-    setShowOfficerModal(false);
-    setEditingOfficer(null);
-    setOfficerFormData({
-      name: '',
-      nmlsId: '',
-      phone: '',
-      email: '',
-      photoId: null,
-      photoUrl: null,
-      isActive: true,
-    });
-    setError('');
-  };
-
-  // Photo upload handler
-  const uploadPhoto = async (file: File) => {
-    setUploadingPhoto(true);
-    setError('');
-
-    try {
-      const formDataUpload = new FormData();
-      formDataUpload.append('file', file);
-      formDataUpload.append('alt', `Photo of ${officerFormData.name || 'Loan Officer'}`);
-
-      const res = await fetch('/api/media', {
-        method: 'POST',
-        credentials: 'include',
-        body: formDataUpload,
-      });
-
-      if (res.ok) {
-        const result = await res.json();
-        const data = result.data;
-        setOfficerFormData((prev) => ({
-          ...prev,
-          photoId: data.id,
-          photoUrl: data.url,
-        }));
-      } else {
-        throw new Error('Upload failed');
-      }
-    } catch (err) {
-      setError('Failed to upload photo. Make sure you are logged in.');
-    } finally {
-      setUploadingPhoto(false);
-      if (photoInputRef.current) {
-        photoInputRef.current.value = '';
-      }
-    }
-  };
-
-  const removePhoto = () => {
-    setOfficerFormData((prev) => ({ ...prev, photoId: null, photoUrl: null }));
-  };
-
   // Default contact photo upload handler
   const uploadDefaultPhoto = async (file: File) => {
     setUploadingDefaultPhoto(true);
@@ -507,9 +341,9 @@ export default function PreapprovalLettersPage() {
     });
   };
 
-  const loading = activeTab === 'letters' ? lettersLoading : activeTab === 'officers' ? officersLoading : settingsLoading;
+  const loading = activeTab === 'letters' ? lettersLoading : settingsLoading;
 
-  if (loading && letters.length === 0 && officers.length === 0) {
+  if (loading && letters.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
@@ -526,7 +360,7 @@ export default function PreapprovalLettersPage() {
             Pre-Approval Letters
           </h1>
           <p className={`mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Manage pre-approval letters and loan officers
+            Manage pre-approval letters. <a href="/admin/loan-officers" className="text-blue-600 hover:text-blue-700 underline">Manage Loan Officers →</a>
           </p>
         </div>
       </div>
@@ -545,18 +379,6 @@ export default function PreapprovalLettersPage() {
             }`}
           >
             Letters
-          </button>
-          <button
-            onClick={() => setActiveTab('officers')}
-            className={`px-4 py-2 rounded-md font-medium transition-colors ${
-              activeTab === 'officers'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : isDark
-                  ? 'text-gray-400 hover:text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Loan Officers
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -741,162 +563,6 @@ export default function PreapprovalLettersPage() {
                 /verify
               </a>
               {' '}- Share this link with third parties who need to verify pre-approval letters.
-            </p>
-          </div>
-        </>
-      )}
-
-      {/* Officers Tab */}
-      {activeTab === 'officers' && (
-        <>
-          {/* Add Button */}
-          <div className="mb-6 flex justify-end">
-            <button
-              onClick={openAddOfficerModal}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Loan Officer
-            </button>
-          </div>
-
-          {/* Officers Table */}
-          <div className={`rounded-xl border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} overflow-hidden`}>
-            {officers.length === 0 ? (
-              <div className={`p-12 text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                <p>No loan officers found</p>
-                <button
-                  onClick={openAddOfficerModal}
-                  className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Add your first loan officer
-                </button>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead className={isDark ? 'bg-gray-900' : 'bg-gray-50'}>
-                  <tr>
-                    <th className={`px-6 py-4 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                      Name
-                    </th>
-                    <th className={`px-6 py-4 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                      Phone
-                    </th>
-                    <th className={`px-6 py-4 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                      Email
-                    </th>
-                    <th className={`px-6 py-4 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                      Status
-                    </th>
-                    <th className={`px-6 py-4 text-right text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {officers.map((officer) => (
-                    <tr key={officer.id} className={isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          {officer.photoUrl ? (
-                            <img
-                              src={officer.photoUrl}
-                              alt={officer.name}
-                              className="w-10 h-10 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-[#181F53] rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                              {officer.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                            </div>
-                          )}
-                          <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {officer.name}
-                          </p>
-                        </div>
-                      </td>
-                      <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {officer.phone}
-                      </td>
-                      <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {officer.email}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2.5 py-1 text-xs rounded-full ${
-                          officer.isActive
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {officer.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => openEditOfficerModal(officer)}
-                            className={`p-2 rounded-lg transition-colors ${
-                              isDark
-                                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                            }`}
-                            title="Edit officer"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          {deleteOfficerConfirm === officer.id ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleDeleteOfficer(officer.id)}
-                                className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                onClick={() => setDeleteOfficerConfirm(null)}
-                                className={`px-3 py-1.5 text-sm rounded-lg ${
-                                  isDark
-                                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setDeleteOfficerConfirm(officer.id)}
-                              className={`p-2 rounded-lg transition-colors ${
-                                isDark
-                                  ? 'text-red-400 hover:text-red-300 hover:bg-gray-700'
-                                  : 'text-red-500 hover:text-red-600 hover:bg-red-50'
-                              }`}
-                              title="Delete officer"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          {/* Info */}
-          <div className={`mt-6 p-4 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-blue-50'}`}>
-            <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-blue-800'}`}>
-              <strong>Note:</strong> Loan officers added here will be available to select when creating pre-approval letters.
-              Their contact information will be displayed on the public verification page.
             </p>
           </div>
         </>
@@ -1318,7 +984,7 @@ export default function PreapprovalLettersPage() {
                   ))}
                 </select>
                 <p className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Their contact info will be shown on the verification page
+                  Their contact info will be shown on the verification page. <a href="/admin/loan-officers" target="_blank" className="text-blue-600 hover:underline">Add new officers →</a>
                 </p>
               </div>
 
@@ -1389,220 +1055,6 @@ export default function PreapprovalLettersPage() {
         </div>
       )}
 
-      {/* Officer Modal */}
-      {showOfficerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50" onClick={closeOfficerModal} />
-          <div className={`relative w-full max-w-lg rounded-xl shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
-            <div className={`px-6 py-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {editingOfficer ? 'Edit Loan Officer' : 'Add New Loan Officer'}
-              </h2>
-            </div>
-
-            <form onSubmit={handleOfficerSubmit} className="p-6 space-y-4">
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
-                  {error}
-                </div>
-              )}
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Name *
-                </label>
-                <input
-                  type="text"
-                  value={officerFormData.name}
-                  onChange={(e) => setOfficerFormData({ ...officerFormData, name: e.target.value })}
-                  required
-                  className={`w-full px-4 py-2.5 rounded-lg border ${
-                    isDark
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none`}
-                  placeholder="Preston Million"
-                />
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  NMLS ID
-                </label>
-                <input
-                  type="text"
-                  value={officerFormData.nmlsId}
-                  onChange={(e) => setOfficerFormData({ ...officerFormData, nmlsId: e.target.value })}
-                  className={`w-full px-4 py-2.5 rounded-lg border ${
-                    isDark
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none`}
-                  placeholder="123456"
-                />
-                <p className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Will display as &quot;NMLS ID #123456&quot; on verification page
-                </p>
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Phone *
-                </label>
-                <input
-                  type="tel"
-                  value={officerFormData.phone}
-                  onChange={(e) => setOfficerFormData({ ...officerFormData, phone: e.target.value })}
-                  required
-                  className={`w-full px-4 py-2.5 rounded-lg border ${
-                    isDark
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none`}
-                  placeholder="(555) 123-4567"
-                />
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  value={officerFormData.email}
-                  onChange={(e) => setOfficerFormData({ ...officerFormData, email: e.target.value })}
-                  required
-                  className={`w-full px-4 py-2.5 rounded-lg border ${
-                    isDark
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  } focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none`}
-                  placeholder="preston@example.com"
-                />
-              </div>
-
-              {/* Photo Upload */}
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Photo
-                </label>
-                <div className="flex items-center gap-4">
-                  {/* Photo Preview */}
-                  <div className="flex-shrink-0">
-                    {officerFormData.photoUrl ? (
-                      <div className="relative">
-                        <img
-                          src={officerFormData.photoUrl}
-                          alt="Officer photo"
-                          className="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={removePhoto}
-                          className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
-                          title="Remove photo"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-gray-400">
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  {/* Upload Button */}
-                  <div className="flex-1">
-                    <input
-                      ref={photoInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) uploadPhoto(file);
-                      }}
-                      className="hidden"
-                      id="photo-upload"
-                    />
-                    <label
-                      htmlFor="photo-upload"
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
-                        isDark
-                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      } ${uploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {uploadingPhoto ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          {officerFormData.photoUrl ? 'Change Photo' : 'Upload Photo'}
-                        </>
-                      )}
-                    </label>
-                    <p className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Photo will be displayed on the verification page
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="isActive"
-                  checked={officerFormData.isActive}
-                  onChange={(e) => setOfficerFormData({ ...officerFormData, isActive: e.target.checked })}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="isActive" className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Active (available for selection on new letters)
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={closeOfficerModal}
-                  className={`px-4 py-2.5 rounded-lg font-medium ${
-                    isDark
-                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={officerSaving}
-                  className="px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {officerSaving && (
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                  )}
-                  {editingOfficer ? 'Save Changes' : 'Add Loan Officer'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

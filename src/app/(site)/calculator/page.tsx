@@ -2,11 +2,21 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './calculator.css';
+import { generateQuotePDF } from '@/lib/pdf/generate-quote-pdf';
+import { searchZipCodes, getTaxRateByZip, ArkansasZipData } from '@/data/arkansas-zip-data';
 
 interface LoanTypeConfig {
   name: string;
   label: string;
   minDownPayment: number;
+  maxLoanAmount: number; // 0 means no limit
+  enabled: boolean;
+}
+
+interface FAQItem {
+  id: string;
+  question: string;
+  answer: string;
   enabled: boolean;
 }
 
@@ -14,8 +24,10 @@ interface CalculatorSettings {
   loanTypes: LoanTypeConfig[];
   propertyInsuranceRate: number;
   propertyTaxRate: number;
+  homesteadTaxCredit?: number;
   minPurchasePrice: number;
   maxPurchasePrice: number;
+  sliderMaxPurchasePrice: number;
   defaultPurchasePrice: number;
   minInterestRate: number;
   maxInterestRate: number;
@@ -29,6 +41,7 @@ interface CalculatorSettings {
   pageTitle: string;
   sliderThumbSize: number;
   sliderTrackHeight: number;
+  sliderColor: string;
   // MIP/PMI rates
   fhaMipRateHigh: number;
   fhaMipRateLow: number;
@@ -48,20 +61,45 @@ interface CalculatorSettings {
   mipSubtext: string;
   pmiLabel: string;
   pmiSubtext: string;
+  // Disclaimer
+  disclaimerText?: string;
+  disclaimerCollapsible?: boolean;
+  // CTA settings
+  ctaTextEnabled?: boolean;
+  // Quote settings
+  quotePhoneRequired?: boolean;
+  quoteEmailRequired?: boolean;
+  // Download Quote Button
+  downloadQuoteButtonText?: string;
+  downloadQuoteButtonColor?: string;
+  downloadQuoteButtonFullWidth?: boolean;
+  quoteFormButtonColor?: string;
+  faqItems?: FAQItem[];
+}
+
+interface CompanyInfo {
+  companyName: string;
+  phone: string;
+  email: string;
+  address: string;
+  nmls: string;
+  applyUrl: string;
 }
 
 const defaultSettings: CalculatorSettings = {
   loanTypes: [
-    { name: 'FHA', label: 'FHA', minDownPayment: 3.5, enabled: true },
-    { name: 'Conventional', label: 'Conventional', minDownPayment: 3, enabled: true },
-    { name: 'USDA', label: 'USDA', minDownPayment: 0, enabled: true },
-    { name: 'VA', label: 'VA', minDownPayment: 0, enabled: true },
-    { name: 'Non-QM', label: 'Non-QM / Investor', minDownPayment: 10, enabled: true },
+    { name: 'FHA', label: 'FHA', minDownPayment: 3.5, maxLoanAmount: 524225, enabled: true },
+    { name: 'Conventional', label: 'Conventional', minDownPayment: 3, maxLoanAmount: 806500, enabled: true },
+    { name: 'USDA', label: 'USDA', minDownPayment: 0, maxLoanAmount: 0, enabled: true },
+    { name: 'VA', label: 'VA', minDownPayment: 0, maxLoanAmount: 0, enabled: true },
+    { name: 'Non-QM', label: 'Non-QM / Investor', minDownPayment: 10, maxLoanAmount: 0, enabled: true },
   ],
-  propertyInsuranceRate: 1.0,
+  propertyInsuranceRate: 0.5,
   propertyTaxRate: 1.0,
+  homesteadTaxCredit: 600,
   minPurchasePrice: 50000,
-  maxPurchasePrice: 2000000,
+  maxPurchasePrice: 5000000,
+  sliderMaxPurchasePrice: 1000000,
   defaultPurchasePrice: 300000,
   minInterestRate: 3.0,
   maxInterestRate: 10.0,
@@ -75,6 +113,7 @@ const defaultSettings: CalculatorSettings = {
   pageTitle: 'Home Loan Calculator',
   sliderThumbSize: 60,
   sliderTrackHeight: 20,
+  sliderColor: '#181F53',
   // MIP/PMI rates
   fhaMipRateHigh: 0.55,
   fhaMipRateLow: 0.50,
@@ -94,6 +133,23 @@ const defaultSettings: CalculatorSettings = {
   mipSubtext: 'Required for FHA loans ({rate}% annually)',
   pmiLabel: 'Private Mortgage Insurance (PMI)',
   pmiSubtext: 'Required until 20% equity ({rate}% annually)',
+  // Disclaimer
+  disclaimerText: 'This calculator provides estimates for informational purposes only and does not constitute a loan offer or commitment to lend. Actual rates, payments, and terms may vary based on your credit profile, property location, loan program, and other factors. Property taxes and insurance amounts are estimates based on average rates and may differ from actual costs. Mortgage insurance (MIP/PMI) calculations are approximations. Contact us for a personalized quote and accurate figures. All loans subject to credit approval.',
+  disclaimerCollapsible: true,
+  // CTA settings
+  ctaTextEnabled: true,
+  faqItems: [
+    { id: 'faq-1', question: 'What are the current FHA loan limits for Arkansas?', answer: 'For 2025, the FHA loan limit in Arkansas is $524,225 for single-family homes. This limit applies to most counties in Arkansas. If you need a larger loan amount, you may want to consider a Conventional loan with limits up to $806,500.', enabled: true },
+    { id: 'faq-2', question: 'What is MIP and how does it affect my payment?', answer: 'MIP (Mortgage Insurance Premium) is required on all FHA loans regardless of down payment. The annual MIP rate is typically 0.55% of the loan amount for loans with LTV over 95%, or 0.50% for LTV at or below 95%. This is divided by 12 and added to your monthly payment. MIP is required for the life of most FHA loans.', enabled: true },
+    { id: 'faq-3', question: 'What is PMI and when is it required?', answer: 'PMI (Private Mortgage Insurance) is required on Conventional loans when your down payment is less than 20%. The rate varies based on credit score and LTV, typically ranging from 0.5% to 1.5% annually. Unlike FHA MIP, PMI can be removed once you reach 20% equity in your home.', enabled: true },
+    { id: 'faq-4', question: 'What is the difference between FHA and Conventional loans?', answer: 'FHA loans are government-backed with lower credit score requirements (580+) and down payments (3.5%), but require MIP for the life of the loan. Conventional loans require higher credit scores (620+) but PMI can be removed at 20% equity. Conventional loans also have higher loan limits ($806,500 vs $524,225 for FHA).', enabled: true },
+    { id: 'faq-5', question: 'How much down payment do I need?', answer: 'Down payment requirements vary by loan type: FHA requires 3.5% minimum, Conventional requires 3% minimum (with PMI), VA and USDA offer 0% down options for eligible borrowers, and Non-QM/Investor loans typically require 10%+ down. Use the calculator to see how different down payments affect your monthly payment.', enabled: true },
+    { id: 'faq-6', question: 'What are Conventional loan limits?', answer: 'For 2025, the Conventional conforming loan limit is $806,500 for single-family homes in most areas. Loans above this amount are considered "Jumbo" loans and may have different requirements. High-cost areas have higher limits, but Arkansas uses the standard limit.', enabled: true },
+    { id: 'faq-7', question: 'What is a Jumbo loan?', answer: 'A Jumbo loan is a mortgage that exceeds the conforming loan limits ($806,500 for 2025). These loans typically require larger down payments (10-20%), higher credit scores (700+), and may have slightly higher interest rates. They are used for purchasing higher-priced homes.', enabled: true },
+    { id: 'faq-8', question: 'How is my monthly payment calculated?', answer: 'Your monthly payment consists of: Principal & Interest (based on loan amount, interest rate, and term), Property Taxes (varies by county, typically 0.4-0.7% in Arkansas), Property Insurance (estimated at ~0.5% annually, or $500 per $100k), and Mortgage Insurance (MIP for FHA or PMI for Conventional with <20% down). This calculator estimates all these components. You can enter your Arkansas ZIP code in Advanced Settings to get your county\'s actual tax rate.', enabled: true },
+    { id: 'faq-9', question: 'Can I remove mortgage insurance from my loan?', answer: 'For Conventional loans, PMI can be removed when you reach 20% equity through payments or appreciation. For FHA loans taken after 2013, MIP is required for the life of the loan if your down payment was less than 10%. If you put 10% or more down on an FHA loan, MIP can be removed after 11 years.', enabled: true },
+    { id: 'faq-10', question: 'What credit score do I need for each loan type?', answer: 'Minimum credit scores vary by loan type: FHA requires 580+ for 3.5% down (500-579 requires 10% down), Conventional typically requires 620+, VA loans generally require 620+, USDA requires 640+, and Non-QM/Investor loans may accept lower scores with larger down payments.', enabled: true },
+  ],
 };
 
 export default function CalculatorPage() {
@@ -121,8 +177,34 @@ export default function CalculatorPage() {
   const [customTaxesInput, setCustomTaxesInput] = useState('');
   const [isCustomTaxesFocused, setIsCustomTaxesFocused] = useState(false);
 
+  // Zip code lookup state
+  const [zipCodeInput, setZipCodeInput] = useState('');
+  const [zipSuggestions, setZipSuggestions] = useState<ArkansasZipData[]>([]);
+  const [showZipSuggestions, setShowZipSuggestions] = useState(false);
+  const [selectedZipInfo, setSelectedZipInfo] = useState<{ county: string; city: string; taxRate: number } | null>(null);
+  const zipInputRef = useRef<HTMLInputElement>(null);
+
+  // FAQ state
+  const [openFaqIds, setOpenFaqIds] = useState<string[]>([]);
+
+  // Disclaimer dropdown state
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+
+  // Quote modal state
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [quoteFirstName, setQuoteFirstName] = useState('');
+  const [quoteLastName, setQuoteLastName] = useState('');
+  const [quotePhone, setQuotePhone] = useState('');
+  const [quoteEmail, setQuoteEmail] = useState('');
+  const [quoteSubmitting, setQuoteSubmitting] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+  const [quoteSuccess, setQuoteSuccess] = useState<{ quoteId: string; quoteUrl: string } | null>(null);
+  const [quoteLinkCopied, setQuoteLinkCopied] = useState(false);
+
   const purchasePriceSliderRef = useRef<HTMLInputElement>(null);
   const interestRateSliderRef = useRef<HTMLInputElement>(null);
+  const downPaymentSliderRef = useRef<HTMLInputElement>(null);
 
   // Fetch settings on mount
   useEffect(() => {
@@ -132,12 +214,39 @@ export default function CalculatorPage() {
         if (res.ok) {
           const result = await res.json();
           if (result.data) {
-            setSettings(result.data);
+            // Merge saved loan types with defaults to include new fields like maxLoanAmount
+            const savedLoanTypes = result.data.loanTypes || [];
+            const mergedLoanTypes = defaultSettings.loanTypes.map(defaultLt => {
+              const savedLt = savedLoanTypes.find((s: LoanTypeConfig) => s.name === defaultLt.name);
+              if (savedLt) {
+                return { ...defaultLt, ...savedLt };
+              }
+              return defaultLt;
+            });
+            // Add any custom loan types from saved settings that aren't in defaults
+            savedLoanTypes.forEach((savedLt: LoanTypeConfig) => {
+              if (!defaultSettings.loanTypes.find(d => d.name === savedLt.name)) {
+                mergedLoanTypes.push({ ...savedLt, maxLoanAmount: savedLt.maxLoanAmount || 0 });
+              }
+            });
+
+            // Merge settings with defaults to include new fields
+            const mergedSettings = {
+              ...defaultSettings,
+              ...result.data,
+              loanTypes: mergedLoanTypes,
+            };
+            setSettings(mergedSettings);
             // Set initial values from settings
             setPurchasePrice(result.data.defaultPurchasePrice || defaultSettings.defaultPurchasePrice);
             setPurchasePriceInput((result.data.defaultPurchasePrice || defaultSettings.defaultPurchasePrice).toString());
             setInterestRate(result.data.defaultInterestRate || defaultSettings.defaultInterestRate);
             setInterestRateInput((result.data.defaultInterestRate || defaultSettings.defaultInterestRate).toString());
+            // Set default loan type to FHA if enabled
+            const fhaLoan = mergedLoanTypes.find((lt: LoanTypeConfig) => lt.name === 'FHA' && lt.enabled);
+            if (fhaLoan) {
+              setLoanType('FHA');
+            }
           }
         }
       } catch (err) {
@@ -146,7 +255,50 @@ export default function CalculatorPage() {
         setSettingsLoaded(true);
       }
     }
+
+    async function fetchCompanyInfo() {
+      try {
+        const [siteRes, footerRes] = await Promise.all([
+          fetch('/api/settings/site'),
+          fetch('/api/settings/footer')
+        ]);
+
+        if (siteRes.ok && footerRes.ok) {
+          const siteData = await siteRes.json();
+          const footerData = await footerRes.json();
+
+          const site = siteData.data || {};
+          const footer = footerData.data || {};
+
+          // Extract NMLS from footer nmls_info field
+          const nmlsMatch = (footer.nmls_info || footer.nmlsInfo || '').match(/NMLS\s*(?:ID\s*)?#?\s*(\d+)/i);
+          const nmls = nmlsMatch ? `NMLS #${nmlsMatch[1]}` : 'NMLS #2676687';
+
+          setCompanyInfo({
+            companyName: site.companyName || 'American Mortgage',
+            phone: site.phone || '870-926-4052',
+            email: site.email || 'hello@americanmtg.com',
+            address: site.address || '122 CR 7185, Jonesboro, AR 72405',
+            nmls,
+            applyUrl: 'americanmtg.com/apply'
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching company info:', err);
+        // Use defaults
+        setCompanyInfo({
+          companyName: 'American Mortgage',
+          phone: '870-926-4052',
+          email: 'hello@americanmtg.com',
+          address: '122 CR 7185, Jonesboro, AR 72405',
+          nmls: 'NMLS #2676687',
+          applyUrl: 'americanmtg.com/apply'
+        });
+      }
+    }
+
     fetchSettings();
+    fetchCompanyInfo();
   }, []);
 
   // Get enabled loan types
@@ -160,6 +312,27 @@ export default function CalculatorPage() {
     });
     return minimums;
   }, [settings.loanTypes]);
+
+  // Build loan type max amounts map (0 means no limit)
+  const loanTypeMaxAmounts = useMemo(() => {
+    const maxAmounts: Record<string, number> = {};
+    settings.loanTypes.forEach(lt => {
+      maxAmounts[lt.name] = lt.maxLoanAmount || 0;
+    });
+    return maxAmounts;
+  }, [settings.loanTypes]);
+
+  // Get current loan type's max loan amount (0 means no limit)
+  const currentMaxLoanAmount = loanType ? (loanTypeMaxAmounts[loanType] || 0) : 0;
+
+  // Calculate effective slider max based on loan type limit
+  const effectiveSliderMax = useMemo(() => {
+    if (currentMaxLoanAmount > 0) {
+      // Use loan type limit, but cap at sliderMaxPurchasePrice setting
+      return Math.min(currentMaxLoanAmount, settings.sliderMaxPurchasePrice || 1000000);
+    }
+    return settings.sliderMaxPurchasePrice || 1000000;
+  }, [currentMaxLoanAmount, settings.sliderMaxPurchasePrice]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -182,8 +355,9 @@ export default function CalculatorPage() {
   const updateSliderBackground = useCallback((slider: HTMLInputElement | null, value: number, min: number, max: number) => {
     if (!slider) return;
     const percent = ((value - min) / (max - min)) * 100;
-    slider.style.background = `linear-gradient(to right, #181F53 ${percent}%, #E5E5E5 ${percent}%)`;
-  }, []);
+    const color = settings.sliderColor || '#181F53';
+    slider.style.background = `linear-gradient(to right, ${color} ${percent}%, #E5E5E5 ${percent}%)`;
+  }, [settings.sliderColor]);
 
   const getDownPaymentOptions = (type: string) => {
     if (!type) return [];
@@ -241,6 +415,35 @@ export default function CalculatorPage() {
   const monthlyRate = interestRate / 100 / 12;
   const numPayments = loanTerm * 12;
 
+  // Check if loan amount exceeds the limit for this loan type
+  const getLoanLimitWarning = () => {
+    if (!loanType || currentMaxLoanAmount === 0) return null;
+
+    if (loanAmount > currentMaxLoanAmount) {
+      // Find alternative loan types with higher limits
+      const alternatives = enabledLoanTypes
+        .filter(lt => lt.name !== loanType && (lt.maxLoanAmount === 0 || lt.maxLoanAmount >= loanAmount))
+        .map(lt => lt.label);
+
+      let suggestion = '';
+      if (alternatives.includes('Conventional') && loanType === 'FHA') {
+        suggestion = 'Consider switching to Conventional or increasing your down payment.';
+      } else if (alternatives.some(a => a.includes('Non-QM') || a.includes('Jumbo'))) {
+        suggestion = 'Consider switching to Non-QM/Jumbo or increasing your down payment.';
+      } else {
+        suggestion = 'Consider increasing your down payment.';
+      }
+
+      return {
+        type: 'warning',
+        message: `${loanType} limit is ${formatCurrency(currentMaxLoanAmount)}. Your loan amount is ${formatCurrency(loanAmount)}. ${suggestion}`,
+      };
+    }
+    return null;
+  };
+
+  const loanLimitWarning = getLoanLimitWarning();
+
   let monthlyPI = 0;
   if (monthlyRate > 0 && loanAmount > 0) {
     monthlyPI =
@@ -251,8 +454,14 @@ export default function CalculatorPage() {
   }
 
   // Use custom values if provided, otherwise calculate from rates
+  // Use zip code county rate if selected, otherwise default rate
+  const activeTaxRate = selectedZipInfo?.taxRate ?? settings.propertyTaxRate;
   const defaultMonthlyInsurance = (purchasePrice * (settings.propertyInsuranceRate / 100)) / 12;
-  const defaultMonthlyTaxes = (purchasePrice * (settings.propertyTaxRate / 100)) / 12;
+  // Calculate annual taxes and apply homestead credit (minimum 0)
+  const annualTaxes = purchasePrice * (activeTaxRate / 100);
+  const homesteadCredit = settings.homesteadTaxCredit || 0;
+  const annualTaxesAfterCredit = Math.max(0, annualTaxes - homesteadCredit);
+  const defaultMonthlyTaxes = annualTaxesAfterCredit / 12;
   const monthlyInsurance = customInsurance ? parseFloat(customInsurance) : defaultMonthlyInsurance;
   const monthlyTaxes = customTaxes ? parseFloat(customTaxes) : defaultMonthlyTaxes;
 
@@ -286,12 +495,18 @@ export default function CalculatorPage() {
 
   // Update slider backgrounds
   useEffect(() => {
-    updateSliderBackground(purchasePriceSliderRef.current, purchasePrice, settings.minPurchasePrice, settings.maxPurchasePrice);
-  }, [purchasePrice, settings.minPurchasePrice, settings.maxPurchasePrice, updateSliderBackground]);
+    updateSliderBackground(purchasePriceSliderRef.current, Math.min(purchasePrice, effectiveSliderMax), settings.minPurchasePrice, effectiveSliderMax);
+  }, [purchasePrice, settings.minPurchasePrice, effectiveSliderMax, updateSliderBackground]);
 
   useEffect(() => {
     updateSliderBackground(interestRateSliderRef.current, interestRate, settings.minInterestRate, settings.maxInterestRate);
   }, [interestRate, settings.minInterestRate, settings.maxInterestRate, updateSliderBackground]);
+
+  useEffect(() => {
+    if (downPaymentPercent !== null) {
+      updateSliderBackground(downPaymentSliderRef.current, downPaymentPercent, 0, 50);
+    }
+  }, [downPaymentPercent, updateSliderBackground]);
 
   // Reset down payment when loan type changes
   useEffect(() => {
@@ -304,15 +519,30 @@ export default function CalculatorPage() {
     }
   }, [loanType, loanTypeMinimums]);
 
+  // Format number with commas for display while typing
+  const formatNumberWithCommas = (value: string) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    if (!numericValue) return '';
+    return new Intl.NumberFormat('en-US').format(parseInt(numericValue));
+  };
+
   const handlePurchasePriceInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9]/g, '');
-    setPurchasePriceInput(value);
+    const rawValue = e.target.value.replace(/[^0-9]/g, '');
+    setPurchasePriceInput(rawValue);
+    // Update actual value for real-time calculations
+    if (rawValue) {
+      const numValue = parseInt(rawValue);
+      if (!isNaN(numValue)) {
+        setPurchasePrice(numValue);
+      }
+    }
   };
 
   const handlePurchasePriceBlur = () => {
     setIsPurchasePriceFocused(false);
     const numValue = parseInt(purchasePriceInput) || settings.minPurchasePrice;
-    const clampedValue = Math.min(Math.max(numValue, settings.minPurchasePrice), settings.maxPurchasePrice);
+    // Only enforce minimum, no maximum - let users enter any amount for jumbo loans
+    const clampedValue = Math.max(numValue, settings.minPurchasePrice);
     setPurchasePrice(clampedValue);
     setPurchasePriceInput(clampedValue.toString());
   };
@@ -323,8 +553,35 @@ export default function CalculatorPage() {
   };
 
   const handleInterestRateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9.]/g, '');
-    setInterestRateInput(value);
+    const rawInput = e.target.value;
+    const numericValue = rawInput.replace(/[^0-9.]/g, '');
+
+    // Prevent multiple decimal points
+    const parts = numericValue.split('.');
+    const sanitizedValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : numericValue;
+
+    // Detect if user pressed backspace on the % symbol (value unchanged but % removed)
+    if (sanitizedValue === interestRateInput && rawInput === interestRateInput) {
+      // User deleted the %, so delete the last character of the actual value
+      const newValue = interestRateInput.slice(0, -1);
+      setInterestRateInput(newValue);
+      if (newValue) {
+        const numValue = parseFloat(newValue);
+        if (!isNaN(numValue)) {
+          setInterestRate(numValue);
+        }
+      }
+      return;
+    }
+
+    setInterestRateInput(sanitizedValue);
+    // Update actual value for real-time calculations
+    if (sanitizedValue) {
+      const numValue = parseFloat(sanitizedValue);
+      if (!isNaN(numValue)) {
+        setInterestRate(numValue);
+      }
+    }
   };
 
   const handleInterestRateBlur = () => {
@@ -367,7 +624,7 @@ export default function CalculatorPage() {
 
   const handleCustomDownPaymentFocus = () => {
     setIsCustomDownPaymentFocused(true);
-    setCustomDownPaymentInput(customDownPayment || '');
+    setCustomDownPaymentInput('');
   };
 
   // Custom insurance handlers
@@ -418,7 +675,163 @@ export default function CalculatorPage() {
     setCustomTaxesInput(customTaxes || '');
   };
 
+  // Zip code search handlers
+  const handleZipCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 5);
+    setZipCodeInput(value);
+
+    if (value.length >= 2) {
+      const results = searchZipCodes(value, 8);
+      setZipSuggestions(results);
+      setShowZipSuggestions(results.length > 0);
+    } else {
+      setZipSuggestions([]);
+      setShowZipSuggestions(false);
+    }
+
+    // Clear selected info when user is typing
+    if (selectedZipInfo && value !== zipCodeInput) {
+      setSelectedZipInfo(null);
+    }
+  };
+
+  const handleZipSelect = (zipData: ArkansasZipData) => {
+    setZipCodeInput(zipData.zip);
+    setShowZipSuggestions(false);
+
+    const taxInfo = getTaxRateByZip(zipData.zip);
+    if (taxInfo) {
+      setSelectedZipInfo(taxInfo);
+      // Clear custom taxes when zip is selected - use the county rate
+      setCustomTaxes('');
+      setCustomTaxesInput('');
+    }
+  };
+
+  const handleZipBlur = () => {
+    // Delay hiding to allow click on suggestions
+    setTimeout(() => setShowZipSuggestions(false), 200);
+  };
+
+  const handleZipFocus = () => {
+    if (zipSuggestions.length > 0) {
+      setShowZipSuggestions(true);
+    }
+  };
+
   const downPaymentOptions = getDownPaymentOptions(loanType);
+
+  // FAQ toggle
+  const toggleFaq = (id: string) => {
+    setOpenFaqIds(prev =>
+      prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]
+    );
+  };
+
+  // Get enabled FAQ items
+  const enabledFaqItems = (settings.faqItems || []).filter(item => item.enabled);
+
+  // Handle quote submission
+  const handleQuoteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setQuoteError(null);
+    setQuoteSubmitting(true);
+
+    try {
+      const res = await fetch('/api/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: quoteFirstName,
+          lastName: quoteLastName,
+          phone: quotePhone || null,
+          email: quoteEmail || null,
+          loanType,
+          purchasePrice,
+          downPaymentPercent: isCustomDownPayment
+            ? ((parseFloat(customDownPayment) || 0) / purchasePrice) * 100
+            : downPaymentPercent,
+          downPaymentAmount: Math.round(downPaymentAmount),
+          loanAmount: Math.round(loanAmount),
+          interestRate,
+          loanTerm,
+          monthlyPi: Math.round(monthlyPI * 100) / 100,
+          monthlyInsurance: Math.round(monthlyInsurance * 100) / 100,
+          monthlyTaxes: Math.round(monthlyTaxes * 100) / 100,
+          monthlyMip: Math.round(monthlyMip * 100) / 100,
+          monthlyPmi: Math.round(monthlyPmi * 100) / 100,
+          totalMonthlyPayment: Math.round(totalMonthly * 100) / 100,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to create quote');
+      }
+
+      const { data } = await res.json();
+
+      // Generate and download PDF
+      if (companyInfo) {
+        generateQuotePDF(
+          {
+            quoteId: data.quoteId,
+            firstName: quoteFirstName,
+            lastName: quoteLastName,
+            loanType,
+            purchasePrice,
+            downPaymentPercent: isCustomDownPayment
+              ? ((parseFloat(customDownPayment) || 0) / purchasePrice) * 100
+              : (downPaymentPercent || 0),
+            downPaymentAmount: Math.round(downPaymentAmount),
+            loanAmount: Math.round(loanAmount),
+            interestRate,
+            loanTerm,
+            monthlyPi: monthlyPI,
+            monthlyInsurance,
+            monthlyTaxes,
+            monthlyMip,
+            monthlyPmi,
+            totalMonthlyPayment: totalMonthly,
+          },
+          companyInfo
+        );
+      }
+
+      // Show success state with quote link
+      setQuoteSuccess({
+        quoteId: data.quoteId,
+        quoteUrl: data.quoteUrl || `${window.location.origin}/quote/${data.quoteId}`,
+      });
+    } catch (err) {
+      setQuoteError(err instanceof Error ? err.message : 'Failed to create quote');
+    } finally {
+      setQuoteSubmitting(false);
+    }
+  };
+
+  const handleCloseQuoteModal = () => {
+    setShowQuoteModal(false);
+    setQuoteSuccess(null);
+    setQuoteLinkCopied(false);
+    setQuoteFirstName('');
+    setQuoteLastName('');
+    setQuotePhone('');
+    setQuoteEmail('');
+    setQuoteError(null);
+  };
+
+  const handleCopyQuoteLink = async () => {
+    if (quoteSuccess) {
+      try {
+        await navigator.clipboard.writeText(quoteSuccess.quoteUrl);
+        setQuoteLinkCopied(true);
+        setTimeout(() => setQuoteLinkCopied(false), 2000);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+    }
+  };
 
   // Show loading state until settings are loaded
   if (!settingsLoaded) {
@@ -437,6 +850,7 @@ export default function CalculatorPage() {
       style={{
         '--slider-thumb-size': `${settings.sliderThumbSize}px`,
         '--slider-track-height': `${settings.sliderTrackHeight}px`,
+        '--slider-color': settings.sliderColor,
       } as React.CSSProperties}
     >
       <h1 className="calc-title">{settings.pageTitle}</h1>
@@ -471,7 +885,7 @@ export default function CalculatorPage() {
                 inputMode="numeric"
                 pattern="[0-9]*"
                 className="calc-value-input"
-                value={isPurchasePriceFocused ? purchasePriceInput : formatCurrency(purchasePrice)}
+                value={isPurchasePriceFocused ? (purchasePriceInput ? `$${formatNumberWithCommas(purchasePriceInput)}` : '') : formatCurrency(purchasePrice)}
                 onChange={handlePurchasePriceInputChange}
                 onFocus={handlePurchasePriceFocus}
                 onBlur={handlePurchasePriceBlur}
@@ -483,47 +897,98 @@ export default function CalculatorPage() {
               type="range"
               className="calc-slider"
               min={settings.minPurchasePrice}
-              max={settings.maxPurchasePrice}
+              max={effectiveSliderMax}
               step={5000}
-              value={purchasePrice}
+              value={Math.min(purchasePrice, effectiveSliderMax)}
               onChange={(e) => {
                 const val = parseInt(e.target.value);
                 setPurchasePrice(val);
                 setPurchasePriceInput(val.toString());
               }}
             />
+            {/* Loan Limit Warning */}
+            {loanLimitWarning && (
+              <div className="calc-warning-message" style={{ marginTop: '12px' }}>
+                <svg className="calc-status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <span>{loanLimitWarning.message}</span>
+              </div>
+            )}
           </div>
 
           {/* Down Payment */}
           <div className="calc-input-group">
-            <label className="calc-label">Down Payment</label>
-            <div className="calc-select-wrapper">
-              <select
-                className="calc-select"
-                value={isCustomDownPayment ? 'custom' : (downPaymentPercent ?? '')}
-                onChange={handleDownPaymentChange}
-                disabled={!loanType}
-              >
-                <option value="">Select Value</option>
-                {downPaymentOptions.map((option) => {
-                  if (option === 'custom') {
+            <div className="calc-label-row">
+              <label className="calc-label" style={{ marginBottom: 0 }}>Down Payment</label>
+              <div className="calc-select-wrapper" style={{ width: 'auto' }}>
+                <select
+                  className="calc-select"
+                  value={isCustomDownPayment ? 'custom' : (downPaymentPercent ?? '')}
+                  onChange={handleDownPaymentChange}
+                  disabled={!loanType}
+                  style={{ padding: '10px 40px 10px 12px', fontSize: '16px', minWidth: '180px' }}
+                >
+                  {/* Always show current value as first option when sliding */}
+                  {!isCustomDownPayment && downPaymentPercent !== null && !downPaymentOptions.includes(downPaymentPercent) && (
+                    <option value={downPaymentPercent}>
+                      {downPaymentPercent}% ({formatCurrency((downPaymentPercent / 100) * purchasePrice)})
+                    </option>
+                  )}
+                  <option value="">Select</option>
+                  {downPaymentOptions.map((option) => {
+                    if (option === 'custom') {
+                      return (
+                        <option key="custom" value="custom">
+                          Custom
+                        </option>
+                      );
+                    }
+                    const amount = (option / 100) * purchasePrice;
+                    const isMinimum = option === loanTypeMinimums[loanType];
                     return (
-                      <option key="custom" value="custom">
-                        Custom
+                      <option key={option} value={option}>
+                        {option}% ({formatCurrency(amount)}){isMinimum ? ' - Min' : ''}
                       </option>
                     );
-                  }
-                  const amount = (option / 100) * purchasePrice;
-                  const isMinimum = option === loanTypeMinimums[loanType];
-                  return (
-                    <option key={option} value={option}>
-                      {option}% ({formatCurrency(amount)}){isMinimum ? ' - Minimum' : ''}
-                    </option>
-                  );
-                })}
-              </select>
-              <span className="calc-select-arrow">▼</span>
+                  })}
+                </select>
+                <span className="calc-select-arrow">▼</span>
+              </div>
             </div>
+            <input
+              ref={downPaymentSliderRef}
+              type="range"
+              className="calc-slider"
+              min={loanType ? (loanTypeMinimums[loanType] || 0) : 0}
+              max={50}
+              step={2.5}
+              value={isCustomDownPayment
+                ? (customDownPayment ? Math.min((parseInt(customDownPayment) / purchasePrice) * 100, 50) : 0)
+                : (downPaymentPercent ?? 0)
+              }
+              onChange={(e) => {
+                const rawVal = parseFloat(e.target.value);
+                const minDP = loanType ? (loanTypeMinimums[loanType] || 0) : 0;
+                // Snap to valid increments: min, then 2.5% increments (2.5, 5, 7.5, 10, etc.)
+                const validValues: number[] = [minDP];
+                for (let v = 2.5; v <= 50; v += 2.5) {
+                  if (v > minDP && !validValues.includes(v)) {
+                    validValues.push(v);
+                  }
+                }
+                // Find the closest valid value
+                const snappedVal = validValues.reduce((prev, curr) =>
+                  Math.abs(curr - rawVal) < Math.abs(prev - rawVal) ? curr : prev
+                );
+                setIsCustomDownPayment(false);
+                setCustomDownPayment('');
+                setDownPaymentPercent(snappedVal);
+              }}
+              disabled={!loanType}
+            />
             <div className={`calc-custom-input-wrapper ${isCustomDownPayment ? 'visible' : ''}`}>
               <input
                 type="text"
@@ -531,7 +996,7 @@ export default function CalculatorPage() {
                 pattern="[0-9]*"
                 className={`calc-value-input full-width ${validation?.type || ''}`}
                 placeholder="Enter down payment amount"
-                value={isCustomDownPaymentFocused ? customDownPaymentInput : (customDownPayment ? formatCurrency(parseInt(customDownPayment)) : '')}
+                value={isCustomDownPaymentFocused ? (customDownPaymentInput ? `$${formatNumberWithCommas(customDownPaymentInput)}` : '') : (customDownPayment ? formatCurrency(parseInt(customDownPayment)) : '')}
                 onChange={handleCustomDownPaymentInput}
                 onFocus={handleCustomDownPaymentFocus}
                 onBlur={handleCustomDownPaymentBlur}
@@ -577,7 +1042,7 @@ export default function CalculatorPage() {
                 inputMode="decimal"
                 pattern="[0-9.]*"
                 className="calc-value-input"
-                value={isInterestRateFocused ? interestRateInput : `${interestRate}%`}
+                value={isInterestRateFocused ? (interestRateInput ? `${interestRateInput}%` : '') : `${interestRate}%`}
                 onChange={handleInterestRateInputChange}
                 onFocus={handleInterestRateFocus}
                 onBlur={handleInterestRateBlur}
@@ -677,7 +1142,7 @@ export default function CalculatorPage() {
                       <p className="calc-breakdown-label">{settings.piLabel}</p>
                       <p className="calc-breakdown-subtext">{formatSubtext(settings.piSubtext, interestRate)}</p>
                     </div>
-                    <p className="calc-breakdown-value">{formatCurrencyDecimal(monthlyPI)}</p>
+                    <p className="calc-breakdown-value">{formatCurrencyDecimal(monthlyPI)}/mo</p>
                   </div>
 
                   {/* FHA MIP - only shown for FHA loans */}
@@ -687,7 +1152,7 @@ export default function CalculatorPage() {
                         <p className="calc-breakdown-label">{settings.mipLabel}</p>
                         <p className="calc-breakdown-subtext">{formatSubtext(settings.mipSubtext, mipRate)}</p>
                       </div>
-                      <p className="calc-breakdown-value">{formatCurrencyDecimal(monthlyMip)}</p>
+                      <p className="calc-breakdown-value">{formatCurrencyDecimal(monthlyMip)}/mo</p>
                     </div>
                   )}
 
@@ -698,7 +1163,7 @@ export default function CalculatorPage() {
                         <p className="calc-breakdown-label">{settings.pmiLabel}</p>
                         <p className="calc-breakdown-subtext">{formatSubtext(settings.pmiSubtext, pmiRate)}</p>
                       </div>
-                      <p className="calc-breakdown-value">{formatCurrencyDecimal(monthlyPmi)}</p>
+                      <p className="calc-breakdown-value">{formatCurrencyDecimal(monthlyPmi)}/mo</p>
                     </div>
                   )}
 
@@ -711,7 +1176,7 @@ export default function CalculatorPage() {
                           {customInsurance ? 'Custom amount' : formatSubtext(settings.insuranceSubtext, settings.propertyInsuranceRate)}
                         </p>
                       </div>
-                      <p className="calc-breakdown-value">{formatCurrencyDecimal(monthlyInsurance)}</p>
+                      <p className="calc-breakdown-value">{formatCurrencyDecimal(monthlyInsurance)}/mo</p>
                     </div>
                     <input
                       type="text"
@@ -727,37 +1192,196 @@ export default function CalculatorPage() {
                     />
                   </div>
 
-                  {/* Property Taxes - with custom input */}
+                  {/* Property Taxes - with zip code lookup */}
                   <div className="calc-breakdown-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                       <div>
                         <p className="calc-breakdown-label">{settings.taxesLabel}</p>
                         <p className="calc-breakdown-subtext">
-                          {customTaxes ? 'Custom amount' : formatSubtext(settings.taxesSubtext, settings.propertyTaxRate)}
+                          {customTaxes
+                            ? 'Custom amount'
+                            : selectedZipInfo
+                              ? `${selectedZipInfo.county} County (${selectedZipInfo.taxRate}% annually)`
+                              : formatSubtext(settings.taxesSubtext, settings.propertyTaxRate)
+                          }
                         </p>
                       </div>
-                      <p className="calc-breakdown-value">{formatCurrencyDecimal(monthlyTaxes)}</p>
+                      <p className="calc-breakdown-value">{formatCurrencyDecimal(monthlyTaxes)}/mo</p>
                     </div>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      pattern="[0-9.]*"
-                      className="calc-value-input full-width"
-                      placeholder="Enter custom monthly amount"
-                      value={isCustomTaxesFocused ? customTaxesInput : (customTaxes ? formatCurrencyDecimal(parseFloat(customTaxes)) : '')}
-                      onChange={handleCustomTaxesInput}
-                      onFocus={handleCustomTaxesFocus}
-                      onBlur={handleCustomTaxesBlur}
-                      style={{ fontSize: '16px', padding: '8px 12px' }}
-                    />
+
+                    {/* Homestead Credit Notice */}
+                    {homesteadCredit > 0 && !customTaxes && (
+                      <p style={{
+                        fontSize: '11px',
+                        color: '#666',
+                        margin: '0 0 8px 0',
+                        padding: '8px 10px',
+                        backgroundColor: '#f0f9ff',
+                        borderRadius: '4px',
+                        borderLeft: '3px solid #3B82F6',
+                      }}>
+                        <strong>Note:</strong> Includes ${homesteadCredit} Arkansas homestead tax credit for owner-occupied primary residences.
+                      </p>
+                    )}
+
+                    {/* Zip Code Lookup */}
+                    <div style={{ position: 'relative', marginBottom: '8px' }}>
+                      <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                        Enter Arkansas ZIP code for county tax rate
+                      </label>
+                      <input
+                        ref={zipInputRef}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        className="calc-value-input full-width"
+                        placeholder="e.g. 72701"
+                        value={zipCodeInput}
+                        onChange={handleZipCodeChange}
+                        onFocus={handleZipFocus}
+                        onBlur={handleZipBlur}
+                        style={{ fontSize: '16px', padding: '8px 12px' }}
+                      />
+                      {/* Typeahead suggestions dropdown */}
+                      {showZipSuggestions && zipSuggestions.length > 0 && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          backgroundColor: '#fff',
+                          border: '1px solid #e0e0e0',
+                          borderRadius: '6px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          zIndex: 100,
+                          maxHeight: '200px',
+                          overflowY: 'auto',
+                        }}>
+                          {zipSuggestions.map((zip) => (
+                            <button
+                              key={zip.zip}
+                              type="button"
+                              onClick={() => handleZipSelect(zip)}
+                              style={{
+                                display: 'block',
+                                width: '100%',
+                                padding: '10px 12px',
+                                border: 'none',
+                                borderBottom: '1px solid #f0f0f0',
+                                backgroundColor: '#fff',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                fontSize: '14px',
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f5f5f5'}
+                              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#fff'}
+                            >
+                              <strong>{zip.zip}</strong> - {zip.city}, {zip.county} County
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {selectedZipInfo && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
+                          <p style={{ fontSize: '12px', color: '#16A34A', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10"></circle>
+                              <polyline points="9 12 11.5 14.5 16 10"></polyline>
+                            </svg>
+                            Using {selectedZipInfo.county} County rate: {selectedZipInfo.taxRate}%
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedZipInfo(null);
+                              setZipCodeInput('');
+                            }}
+                            style={{
+                              fontSize: '11px',
+                              color: '#666',
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              textDecoration: 'underline',
+                              padding: '2px 4px',
+                            }}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Custom override input - hidden when ZIP is selected */}
+                    {!selectedZipInfo && (
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9.]*"
+                        className="calc-value-input full-width"
+                        placeholder="Or enter custom monthly amount"
+                        value={isCustomTaxesFocused ? customTaxesInput : (customTaxes ? formatCurrencyDecimal(parseFloat(customTaxes)) : '')}
+                        onChange={handleCustomTaxesInput}
+                        onFocus={handleCustomTaxesFocus}
+                        onBlur={handleCustomTaxesBlur}
+                        style={{ fontSize: '16px', padding: '8px 12px' }}
+                      />
+                    )}
                   </div>
                 </div>
               )}
             </div>
 
+            {/* Download Quote Button */}
+            {loanType && (
+              <div style={{
+                marginTop: '16px',
+                marginBottom: '16px',
+                textAlign: settings.downloadQuoteButtonFullWidth !== false ? 'left' : 'center'
+              }}>
+                <button
+                  onClick={() => setShowQuoteModal(true)}
+                  style={{
+                    width: settings.downloadQuoteButtonFullWidth !== false ? '100%' : 'auto',
+                    maxWidth: settings.downloadQuoteButtonFullWidth !== false ? '100%' : '300px',
+                    padding: '14px 24px',
+                    backgroundColor: settings.downloadQuoteButtonColor || '#DC2626',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: settings.downloadQuoteButtonFullWidth !== false ? 'flex' : 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.filter = 'brightness(0.85)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.filter = 'brightness(1)';
+                  }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  {settings.downloadQuoteButtonText || 'Download Quote'}
+                </button>
+              </div>
+            )}
+
             <div className="calc-cta-section">
-              <h3 className="calc-cta-title">{settings.ctaTitle}</h3>
-              <p className="calc-cta-text">{settings.ctaText}</p>
+              {settings.ctaTextEnabled !== false && (
+                <>
+                  <h3 className="calc-cta-title">{settings.ctaTitle}</h3>
+                  <p className="calc-cta-text">{settings.ctaText}</p>
+                </>
+              )}
               <a
                 href={settings.ctaButtonUrl}
                 className="calc-cta-button"
@@ -772,6 +1396,460 @@ export default function CalculatorPage() {
           </div>
         </div>
       </div>
+
+      {/* Estimates Disclosure */}
+      {settings.disclaimerText && (
+        settings.disclaimerCollapsible !== false ? (
+          // Collapsible dropdown style
+          <div style={{
+            marginTop: '32px',
+            borderRadius: '8px',
+            border: '1px solid #e0e0e0',
+            overflow: 'hidden',
+          }}>
+            <button
+              type="button"
+              onClick={() => setDisclaimerOpen(!disclaimerOpen)}
+              style={{
+                width: '100%',
+                padding: '14px 20px',
+                backgroundColor: '#f8f9fa',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#333',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#181F53" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                Disclaimer
+              </span>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#666"
+                strokeWidth="2"
+                style={{
+                  transform: disclaimerOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease',
+                }}
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            {disclaimerOpen && (
+              <div style={{
+                padding: '16px 20px',
+                backgroundColor: '#fff',
+                borderTop: '1px solid #e0e0e0',
+              }}>
+                <p style={{
+                  fontSize: '12px',
+                  color: '#666',
+                  lineHeight: '1.6',
+                  margin: 0,
+                }}>
+                  {settings.disclaimerText}
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          // Always visible style
+          <div style={{
+            marginTop: '32px',
+            padding: '16px 20px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px',
+            borderLeft: '4px solid #181F53',
+          }}>
+            <p style={{
+              fontSize: '12px',
+              color: '#666',
+              lineHeight: '1.6',
+              margin: 0,
+            }}>
+              <strong style={{ color: '#333' }}>Disclaimer:</strong> {settings.disclaimerText}
+            </p>
+          </div>
+        )
+      )}
+
+      {/* FAQ Section */}
+      {enabledFaqItems.length > 0 && (
+        <div className="calc-faq-section">
+          <h2 className="calc-faq-title">
+            Frequently Asked Questions
+            <span className="calc-faq-title-underline" />
+          </h2>
+          <div className="calc-faq-list">
+            {enabledFaqItems.map((faq) => {
+              const isOpen = openFaqIds.includes(faq.id);
+              return (
+                <div key={faq.id} className="calc-faq-item">
+                  <button
+                    type="button"
+                    onClick={() => toggleFaq(faq.id)}
+                    className={`calc-faq-question ${isOpen ? 'open' : ''}`}
+                  >
+                    <span>{faq.question}</span>
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#666"
+                      strokeWidth="2"
+                      className={`calc-faq-arrow ${isOpen ? 'open' : ''}`}
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+                  {isOpen && (
+                    <div className="calc-faq-answer">
+                      {faq.answer}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Quote Download Modal */}
+      {showQuoteModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+          }}
+          onClick={handleCloseQuoteModal}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              padding: '32px',
+              maxWidth: '450px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {quoteSuccess ? (
+              /* Success State */
+              <>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    backgroundColor: '#10B981',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 16px',
+                  }}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                  <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#181F53', margin: '0 0 8px' }}>
+                    Quote Created!
+                  </h2>
+                  <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>
+                    Quote #{quoteSuccess.quoteId} - Your PDF has been downloaded.
+                  </p>
+                </div>
+
+                <div style={{ backgroundColor: '#F3F4F6', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '8px' }}>
+                    Share your quote:
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={quoteSuccess.quoteUrl}
+                      readOnly
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '6px',
+                        fontSize: '13px',
+                        backgroundColor: '#fff',
+                        color: '#666',
+                      }}
+                    />
+                    <button
+                      onClick={handleCopyQuoteLink}
+                      style={{
+                        padding: '10px 16px',
+                        backgroundColor: quoteLinkCopied ? '#10B981' : '#181F53',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {quoteLinkCopied ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                {quoteEmail && (
+                  <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px', textAlign: 'center' }}>
+                    A copy has also been sent to {quoteEmail}
+                  </p>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <a
+                    href={quoteSuccess.quoteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      padding: '12px',
+                      border: '2px solid #181F53',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#181F53',
+                      textAlign: 'center',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    View Quote
+                  </a>
+                  <button
+                    onClick={handleCloseQuoteModal}
+                    style={{
+                      padding: '12px',
+                      backgroundColor: '#181F53',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      color: '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Done
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* Form State */
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                  <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#181F53', margin: 0 }}>
+                    Download Your Quote
+                  </h2>
+                  <button
+                    onClick={handleCloseQuoteModal}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      color: '#666',
+                    }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+
+                <p style={{ color: '#666', fontSize: '14px', marginBottom: '24px' }}>
+                  Enter your information to receive your personalized loan estimate.
+                </p>
+
+                {quoteError && (
+                  <div style={{
+                    padding: '12px 16px',
+                    backgroundColor: '#FEE2E2',
+                    border: '1px solid #FCA5A5',
+                    borderRadius: '8px',
+                    color: '#DC2626',
+                    fontSize: '14px',
+                    marginBottom: '16px',
+                  }}>
+                    {quoteError}
+                  </div>
+                )}
+
+                <form onSubmit={handleQuoteSubmit}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '6px' }}>
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={quoteFirstName}
+                        onChange={(e) => setQuoteFirstName(e.target.value)}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          border: '1px solid #ddd',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          boxSizing: 'border-box',
+                        }}
+                        placeholder="John"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '6px' }}>
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={quoteLastName}
+                        onChange={(e) => setQuoteLastName(e.target.value)}
+                        required
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          border: '1px solid #ddd',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          boxSizing: 'border-box',
+                        }}
+                        placeholder="Smith"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '6px' }}>
+                      Phone {settings.quotePhoneRequired !== false ? '*' : '(optional)'}
+                    </label>
+                    <input
+                      type="tel"
+                      value={quotePhone}
+                      onChange={(e) => setQuotePhone(e.target.value)}
+                      required={settings.quotePhoneRequired !== false}
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        border: '1px solid #ddd',
+                        borderRadius: '8px',
+                        fontSize: '16px',
+                        boxSizing: 'border-box',
+                      }}
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '6px' }}>
+                      Email {settings.quoteEmailRequired !== false ? '*' : '(optional)'}
+                    </label>
+                    <input
+                      type="email"
+                      value={quoteEmail}
+                      onChange={(e) => setQuoteEmail(e.target.value)}
+                      required={settings.quoteEmailRequired !== false}
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        border: '1px solid #ddd',
+                        borderRadius: '8px',
+                        fontSize: '16px',
+                        boxSizing: 'border-box',
+                      }}
+                      placeholder="john@example.com"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={quoteSubmitting}
+                    style={{
+                      width: '100%',
+                      padding: '14px 24px',
+                      backgroundColor: settings.quoteFormButtonColor || '#181F53',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: quoteSubmitting ? 'not-allowed' : 'pointer',
+                      opacity: quoteSubmitting ? 0.7 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    {quoteSubmitting ? (
+                      <>
+                        <div style={{
+                          width: '20px',
+                          height: '20px',
+                          border: '2px solid #ffffff',
+                          borderTopColor: 'transparent',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite',
+                        }} />
+                        Creating Quote...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        Download Quote PDF
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                <p style={{ fontSize: '12px', color: '#999', marginTop: '16px', textAlign: 'center' }}>
+                  Your information is secure and will not be shared.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

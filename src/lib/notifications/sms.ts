@@ -23,6 +23,7 @@ export const SMS_TYPES = {
   WINNER_NOTIFICATION: 'winner_notification',
   CLAIM_REMINDER: 'claim_reminder',
   PRIZE_SHIPPED: 'prize_shipped',
+  QUOTE_CONFIRMATION: 'quote_confirmation',
 } as const;
 
 type SmsType = typeof SMS_TYPES[keyof typeof SMS_TYPES];
@@ -266,6 +267,31 @@ export async function sendPrizeShippedSms(params: {
       trackingNumber: params.trackingNumber,
       giveawayId: params.giveawayId,
       winnerId: params.winnerId,
+    },
+  });
+}
+
+/**
+ * Send quote confirmation SMS with link to view quote
+ */
+export async function sendQuoteConfirmationSms(params: {
+  phone: string;
+  firstName: string;
+  quoteId: string;
+  totalMonthlyPayment: string;
+  quoteUrl: string;
+}): Promise<SmsResult> {
+  const message = `Hi ${params.firstName}! Your loan estimate is ready. Est. monthly payment: ${params.totalMonthlyPayment}. View your quote: ${params.quoteUrl} - American Mortgage`;
+
+  return sendSms({
+    to: params.phone,
+    message,
+    type: SMS_TYPES.QUOTE_CONFIRMATION,
+    data: {
+      firstName: params.firstName,
+      quoteId: params.quoteId,
+      totalMonthlyPayment: params.totalMonthlyPayment,
+      quoteUrl: params.quoteUrl,
     },
   });
 }

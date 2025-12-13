@@ -120,7 +120,7 @@
   cursor: pointer;
   -webkit-appearance: none;
   appearance: none;
-  background: linear-gradient(to right, #181F53 0%, #E5E5E5 0%);
+  background: linear-gradient(to right, var(--slider-color, #181F53) 0%, #E5E5E5 0%);
 }
 
 .calc-slider::-webkit-slider-thumb {
@@ -150,7 +150,7 @@
   background-size: 100% 40%;
   background-position: center;
   background-repeat: no-repeat;
-  border: 2px solid #181F53;
+  border: 2px solid var(--slider-color, #181F53);
   box-shadow: 0 4px 12px rgba(0,0,0,0.25);
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -186,7 +186,7 @@
   background-size: 100% 40%;
   background-position: center;
   background-repeat: no-repeat;
-  border: 2px solid #181F53;
+  border: 2px solid var(--slider-color, #181F53);
   box-shadow: 0 4px 12px rgba(0,0,0,0.25);
   cursor: pointer;
 }
@@ -419,12 +419,20 @@
 
   .calc-layout {
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
   }
 
   .calc-input-section,
   .calc-results-section {
     min-width: 100%;
+  }
+
+  .calc-input-group {
+    margin-bottom: 16px;
+  }
+
+  .calc-input-group:last-child {
+    margin-bottom: 0;
   }
 
   .calc-results-card {
@@ -445,4 +453,90 @@
   .calc-monthly-amount {
     font-size: 36px;
   }
+
+  .calc-faq-section {
+    margin-top: 32px;
+  }
+
+  .calc-faq-title {
+    text-align: center;
+  }
+
+  .calc-faq-title-underline {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* FAQ Section */
+.calc-faq-section {
+  margin-top: 48px;
+  padding-bottom: 48px;
+}
+
+.calc-faq-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #181F53;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.calc-faq-title-underline {
+  display: block;
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(90deg, #d93c37, #181F53);
+  margin-top: 12px;
+  border-radius: 2px;
+}
+
+.calc-faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.calc-faq-item {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fff;
+}
+
+.calc-faq-question {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 16px 20px;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+  gap: 16px;
+}
+
+.calc-faq-question.open {
+  background: #f8f8f8;
+}
+
+.calc-faq-answer {
+  padding: 0 20px 16px 20px;
+  background-color: #f8f8f8;
+  font-size: 14px;
+  color: #555;
+  line-height: 1.6;
+}
+
+.calc-faq-arrow {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.calc-faq-arrow.open {
+  transform: rotate(180deg);
 }

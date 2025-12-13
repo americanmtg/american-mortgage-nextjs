@@ -110,6 +110,21 @@ export async function GET() {
       mipSubtext: settings.mip_subtext || defaultLabels.mipSubtext,
       pmiLabel: settings.pmi_label || defaultLabels.pmiLabel,
       pmiSubtext: settings.pmi_subtext || defaultLabels.pmiSubtext,
+      // Quote settings
+      quotePhoneRequired: settings.quote_phone_required ?? true,
+      quoteEmailRequired: settings.quote_email_required ?? true,
+      // New fields
+      homesteadTaxCredit: Number(settings.homestead_tax_credit) || 600,
+      disclaimerText: settings.disclaimer_text || 'This calculator provides estimates for informational purposes only and does not constitute a loan offer or commitment to lend. Actual rates, payments, and terms may vary based on your credit profile, property location, loan program, and other factors. Property taxes and insurance amounts are estimates based on average rates and may differ from actual costs. Mortgage insurance (MIP/PMI) calculations are approximations. Contact us for a personalized quote and accurate figures. All loans subject to credit approval.',
+      disclaimerCollapsible: settings.disclaimer_collapsible ?? true,
+      ctaTextEnabled: settings.cta_text_enabled ?? true,
+      sliderColor: settings.slider_color || '#181F53',
+      sliderMaxPurchasePrice: settings.slider_max_purchase_price || 1000000,
+      downloadQuoteButtonText: settings.download_quote_button_text || 'Download Quote',
+      downloadQuoteButtonColor: settings.download_quote_button_color || '#DC2626',
+      downloadQuoteButtonFullWidth: settings.download_quote_button_full_width ?? true,
+      quoteFormButtonColor: settings.quote_form_button_color || '#181F53',
+      faqItems: settings.faq_items || [],
       updatedAt: settings.updated_at,
     })
   } catch (error) {
@@ -163,6 +178,21 @@ export async function PUT(request: NextRequest) {
       mipSubtext,
       pmiLabel,
       pmiSubtext,
+      // Quote settings
+      quotePhoneRequired,
+      quoteEmailRequired,
+      // New fields
+      homesteadTaxCredit,
+      disclaimerText,
+      disclaimerCollapsible,
+      ctaTextEnabled,
+      sliderColor,
+      sliderMaxPurchasePrice,
+      downloadQuoteButtonText,
+      downloadQuoteButtonColor,
+      downloadQuoteButtonFullWidth,
+      quoteFormButtonColor,
+      faqItems,
     } = body
 
     // Find existing settings or create new
@@ -206,6 +236,21 @@ export async function PUT(request: NextRequest) {
       ...(mipSubtext !== undefined && { mip_subtext: mipSubtext }),
       ...(pmiLabel !== undefined && { pmi_label: pmiLabel }),
       ...(pmiSubtext !== undefined && { pmi_subtext: pmiSubtext }),
+      // Quote settings
+      ...(quotePhoneRequired !== undefined && { quote_phone_required: quotePhoneRequired }),
+      ...(quoteEmailRequired !== undefined && { quote_email_required: quoteEmailRequired }),
+      // New fields
+      ...(homesteadTaxCredit !== undefined && { homestead_tax_credit: homesteadTaxCredit }),
+      ...(disclaimerText !== undefined && { disclaimer_text: disclaimerText }),
+      ...(disclaimerCollapsible !== undefined && { disclaimer_collapsible: disclaimerCollapsible }),
+      ...(ctaTextEnabled !== undefined && { cta_text_enabled: ctaTextEnabled }),
+      ...(sliderColor !== undefined && { slider_color: sliderColor }),
+      ...(sliderMaxPurchasePrice !== undefined && { slider_max_purchase_price: sliderMaxPurchasePrice }),
+      ...(downloadQuoteButtonText !== undefined && { download_quote_button_text: downloadQuoteButtonText }),
+      ...(downloadQuoteButtonColor !== undefined && { download_quote_button_color: downloadQuoteButtonColor }),
+      ...(downloadQuoteButtonFullWidth !== undefined && { download_quote_button_full_width: downloadQuoteButtonFullWidth }),
+      ...(quoteFormButtonColor !== undefined && { quote_form_button_color: quoteFormButtonColor }),
+      ...(faqItems !== undefined && { faq_items: faqItems }),
       updated_at: new Date(),
     }
 
@@ -263,6 +308,21 @@ export async function PUT(request: NextRequest) {
       mipSubtext: settings.mip_subtext || defaultLabels.mipSubtext,
       pmiLabel: settings.pmi_label || defaultLabels.pmiLabel,
       pmiSubtext: settings.pmi_subtext || defaultLabels.pmiSubtext,
+      // Quote settings
+      quotePhoneRequired: settings.quote_phone_required ?? true,
+      quoteEmailRequired: settings.quote_email_required ?? true,
+      // New fields
+      homesteadTaxCredit: Number(settings.homestead_tax_credit) || 600,
+      disclaimerText: settings.disclaimer_text || '',
+      disclaimerCollapsible: settings.disclaimer_collapsible ?? true,
+      ctaTextEnabled: settings.cta_text_enabled ?? true,
+      sliderColor: settings.slider_color || '#181F53',
+      sliderMaxPurchasePrice: settings.slider_max_purchase_price || 1000000,
+      downloadQuoteButtonText: settings.download_quote_button_text || 'Download Quote',
+      downloadQuoteButtonColor: settings.download_quote_button_color || '#DC2626',
+      downloadQuoteButtonFullWidth: settings.download_quote_button_full_width ?? true,
+      quoteFormButtonColor: settings.quote_form_button_color || '#181F53',
+      faqItems: settings.faq_items || [],
       updatedAt: settings.updated_at,
     })
   } catch (error) {

@@ -12,6 +12,10 @@ const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'giveaways@americanmtg.com';
 const FROM_NAME = process.env.SENDGRID_FROM_NAME || 'American Mortgage Giveaways';
 
+// Quotes-specific from address
+const QUOTES_FROM_EMAIL = process.env.SENDGRID_QUOTES_FROM_EMAIL || 'quotes@americanmtg.com';
+const QUOTES_FROM_NAME = process.env.SENDGRID_QUOTES_FROM_NAME || 'American Mortgage';
+
 if (SENDGRID_API_KEY) {
   sgMail.setApiKey(SENDGRID_API_KEY);
 }
@@ -23,6 +27,7 @@ export const EMAIL_TEMPLATES = {
   CLAIM_CONFIRMATION: 'claim_confirmation',
   CLAIM_REMINDER: 'claim_reminder',
   PRIZE_SHIPPED: 'prize_shipped',
+  QUOTE_CONFIRMATION: 'quote_confirmation',
 } as const;
 
 type EmailTemplate = typeof EMAIL_TEMPLATES[keyof typeof EMAIL_TEMPLATES];
@@ -33,6 +38,8 @@ interface EmailParams {
   template: EmailTemplate;
   data: Record<string, unknown>;
   html?: string;
+  fromEmail?: string;
+  fromName?: string;
 }
 
 interface EmailResult {
@@ -210,6 +217,52 @@ function generateEmailHtml(template: EmailTemplate, data: Record<string, unknown
         </html>
       `;
 
+    case EMAIL_TEMPLATES.QUOTE_CONFIRMATION:
+      return `
+        <!DOCTYPE html>
+        <html>
+        <head>${baseStyles}</head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Your Loan Estimate</h1>
+            </div>
+            <div class="content">
+              <p>Hi ${data.firstName},</p>
+              <p>Thank you for using our Home Loan Calculator! Here's a summary of your personalized loan estimate.</p>
+              <div class="highlight">
+                <h2>Quote #${data.quoteId}</h2>
+                <p><strong>Loan Type:</strong> ${data.loanType}</p>
+                <p><strong>Purchase Price:</strong> ${data.purchasePrice}</p>
+                <p><strong>Loan Amount:</strong> ${data.loanAmount}</p>
+                <p><strong>Interest Rate:</strong> ${data.interestRate}%</p>
+                <p><strong>Loan Term:</strong> ${data.loanTerm} years</p>
+              </div>
+              <div class="highlight" style="background: #e8f5e9; border-left-color: #4caf50;">
+                <h2 style="color: #2e7d32;">Estimated Monthly Payment: ${data.totalMonthlyPayment}</h2>
+              </div>
+              <p>Want to view or share your quote? Use the link below:</p>
+              <p style="text-align: center;">
+                <a href="${data.quoteUrl}" class="button">View Your Quote</a>
+              </p>
+              <p style="text-align: center;">
+                <a href="${data.applyUrl}" class="button" style="background: #2e7d32;">Apply Now</a>
+              </p>
+              <p style="font-size: 12px; color: #666; margin-top: 20px;">
+                <strong>Disclosure:</strong> This is an estimate only and does not constitute a loan approval. Actual rates, terms, and payments may vary based on credit profile and other factors. Contact us for details.
+              </p>
+              <p>Questions? Call us at ${data.companyPhone} or email ${data.companyEmail}.</p>
+              <p>Best regards,<br>American Mortgage Team</p>
+            </div>
+            <div class="footer">
+              <p>${data.companyName} | ${data.companyNmls}</p>
+              <p>Equal Housing Opportunity</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
     default:
       return `<p>${JSON.stringify(data)}</p>`;
   }
@@ -260,8 +313,8 @@ export async function sendEmail(params: EmailParams): Promise<EmailResult> {
     const msg = {
       to,
       from: {
-        email: FROM_EMAIL,
-        name: FROM_NAME,
+        email: params.fromEmail || FROM_EMAIL,
+        name: params.fromName || FROM_NAME,
       },
       subject,
       html,
@@ -472,6 +525,53 @@ export async function sendPrizeShipped(params: {
       carrier: params.carrier,
       giveawayId: params.giveawayId,
       winnerId: params.winnerId,
+    },
+  });
+}
+
+/**
+ * Send quote confirmation email with shareable link
+ */
+export async function sendQuoteConfirmation(params: {
+  email: string;
+  firstName: string;
+  quoteId: string;
+  loanType: string;
+  purchasePrice: string;
+  loanAmount: string;
+  interestRate: number;
+  loanTerm: number;
+  totalMonthlyPayment: string;
+  quoteUrl: string;
+  applyUrl: string;
+  companyName: string;
+  companyPhone: string;
+  companyEmail: string;
+  companyNmls: string;
+  fromEmail?: string;
+  fromName?: string;
+}): Promise<EmailResult> {
+  return sendEmail({
+    to: params.email,
+    subject: `Your Loan Estimate - Quote #${params.quoteId}`,
+    template: EMAIL_TEMPLATES.QUOTE_CONFIRMATION,
+    fromEmail: params.fromEmail || QUOTES_FROM_EMAIL,
+    fromName: params.fromName || QUOTES_FROM_NAME,
+    data: {
+      firstName: params.firstName,
+      quoteId: params.quoteId,
+      loanType: params.loanType,
+      purchasePrice: params.purchasePrice,
+      loanAmount: params.loanAmount,
+      interestRate: params.interestRate,
+      loanTerm: params.loanTerm,
+      totalMonthlyPayment: params.totalMonthlyPayment,
+      quoteUrl: params.quoteUrl,
+      applyUrl: params.applyUrl,
+      companyName: params.companyName,
+      companyPhone: params.companyPhone,
+      companyEmail: params.companyEmail,
+      companyNmls: params.companyNmls,
     },
   });
 }
