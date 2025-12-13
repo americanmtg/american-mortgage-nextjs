@@ -40,6 +40,62 @@ interface LoanOfficer {
   isActive: boolean;
 }
 
+interface QuoteEmailSettings {
+  subject: string;
+  greeting: string;
+  introText: string;
+  bodyText: string;
+  buttonText: string;
+  showApplyButton: boolean;
+  applyButtonText: string;
+  closingText: string;
+  signatureText: string;
+  primaryColor: string;
+  buttonColor: string;
+}
+
+const defaultEmailSettings: QuoteEmailSettings = {
+  subject: 'Your Loan Estimate - Quote #{quoteId}',
+  greeting: 'Hi {firstName},',
+  introText: 'Thank you for using our mortgage calculator! Here are the details of your personalized loan estimate:',
+  bodyText: 'Ready to take the next step? Click the button below to view your full quote with additional details, or apply now to get started on your home loan journey.',
+  buttonText: 'View Your Quote',
+  showApplyButton: true,
+  applyButtonText: 'Apply Now',
+  closingText: "If you have any questions, feel free to reach out. We're here to help you every step of the way.",
+  signatureText: 'Best regards,',
+  primaryColor: '#0f2e71',
+  buttonColor: '#0f2e71',
+};
+
+// Sample data for email preview
+const sampleData = {
+  firstName: 'John',
+  quoteId: '1234',
+  loanType: 'FHA',
+  purchasePrice: '$350,000',
+  loanAmount: '$338,450',
+  interestRate: '6.5',
+  loanTerm: 30,
+  totalMonthlyPayment: '$2,847.23',
+  companyName: 'American Mortgage',
+  companyPhone: '(870) 926-4052',
+  companyEmail: 'hello@americanmtg.com',
+  companyNmls: 'NMLS ID #2676687',
+};
+
+function replacePlaceholders(text: string): string {
+  return text
+    .replace(/{firstName}/g, sampleData.firstName)
+    .replace(/{quoteId}/g, sampleData.quoteId)
+    .replace(/{loanType}/g, sampleData.loanType)
+    .replace(/{purchasePrice}/g, sampleData.purchasePrice)
+    .replace(/{loanAmount}/g, sampleData.loanAmount)
+    .replace(/{interestRate}/g, sampleData.interestRate)
+    .replace(/{loanTerm}/g, String(sampleData.loanTerm))
+    .replace(/{totalMonthlyPayment}/g, sampleData.totalMonthlyPayment);
+}
+
 const formatCurrency = (value: number, decimals: boolean = false) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -59,7 +115,12 @@ const formatDate = (dateString: string) => {
   });
 };
 
+type TabType = 'requests' | 'email-template';
+
 export default function AdminQuotesPage() {
+  const [activeTab, setActiveTab] = useState<TabType>('requests');
+
+  // Quote requests state
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 25, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
@@ -95,6 +156,13 @@ export default function AdminQuotesPage() {
     monthlyInsurance: '150',
     monthlyTaxes: '250',
   });
+
+  // Email template state
+  const [emailSettings, setEmailSettings] = useState<QuoteEmailSettings>(defaultEmailSettings);
+  const [emailLoading, setEmailLoading] = useState(true);
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState<string | null>(null);
 
   const getQuoteUrl = (quoteId: string) => {
     return `${window.location.origin}/quote/${quoteId}`;
@@ -165,7 +233,58 @@ export default function AdminQuotesPage() {
   useEffect(() => {
     fetchQuotes();
     fetchLoanOfficers();
+    fetchEmailSettings();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'requests') {
+      fetchQuotes();
+    }
   }, [pagination.page, search]);
+
+  async function fetchEmailSettings() {
+    try {
+      const res = await fetch('/api/settings/quote-email', { credentials: 'include' });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.data) {
+          setEmailSettings({ ...defaultEmailSettings, ...result.data });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch quote email settings:', err);
+    } finally {
+      setEmailLoading(false);
+    }
+  }
+
+  async function saveEmailSettings() {
+    setEmailSaving(true);
+    setEmailError(null);
+    setEmailSuccess(null);
+
+    try {
+      const res = await fetch('/api/settings/quote-email', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(emailSettings),
+      });
+
+      if (res.ok) {
+        setEmailSuccess('Email template saved successfully!');
+        setTimeout(() => setEmailSuccess(null), 3000);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save settings');
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+      setEmailError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setEmailSaving(false);
+    }
+  }
 
   async function fetchLoanOfficers() {
     try {
@@ -353,200 +472,604 @@ export default function AdminQuotesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header with Tabs */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quotes</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Manage quote requests and email templates
+            </p>
+          </div>
+          {activeTab === 'requests' && (
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowGenerateModal(true)}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Generate Quote
+              </button>
+              <button
+                onClick={exportToCSV}
+                disabled={quotes.length === 0}
+                className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export CSV
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex gap-6">
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'requests'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Quote Requests
+                {pagination.total > 0 && (
+                  <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-2 py-0.5 rounded-full">
+                    {pagination.total}
+                  </span>
+                )}
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('email-template')}
+              className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'email-template'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Email Template
+              </div>
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'requests' ? (
+        <>
+          {/* Search */}
+          <form onSubmit={handleSearch} className="flex gap-3">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, email, phone, or quote ID..."
+              className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"
+            />
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700"
+            >
+              Search
+            </button>
+          </form>
+
+          {/* Table */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : quotes.length === 0 ? (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                No quotes found
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Quote ID</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Contact</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Loan</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Amount</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Payment</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Date</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {quotes.map((quote) => (
+                      <tr key={quote.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-sm text-blue-600 dark:text-blue-400">{quote.quoteId}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-medium text-gray-900 dark:text-white">
+                            {quote.firstName} {quote.lastName}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                          <div>{quote.phone || '—'}</div>
+                          <div className="text-gray-400">{quote.email || '—'}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            {quote.loanType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
+                          {formatCurrency(quote.loanAmount)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {formatCurrency(quote.totalMonthlyPayment, true)}/mo
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                          {formatDate(quote.createdAt)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <a
+                              href={`/quote/${quote.quoteId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded"
+                              title="View quote page"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </a>
+                            <button
+                              onClick={() => copyQuoteLink(quote.quoteId)}
+                              className={`p-1.5 rounded ${copiedId === quote.quoteId ? 'text-green-600 bg-green-50 dark:bg-green-900/30' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
+                              title={copiedId === quote.quoteId ? 'Copied!' : 'Copy link'}
+                            >
+                              {copiedId === quote.quoteId ? (
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                </svg>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => openSendMessage(quote)}
+                              className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
+                              title="Send message"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setSelectedQuote(quote)}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
+                              title="View details"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(quote.id)}
+                              disabled={deleting === quote.id}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded disabled:opacity-50"
+                              title="Delete"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
+                    disabled={pagination.page === 1}
+                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
+                    disabled={pagination.page >= pagination.totalPages}
+                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        /* Email Template Tab */
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quote Requests</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {pagination.total} total quote{pagination.total !== 1 ? 's' : ''} generated
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowGenerateModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Generate Quote
-          </button>
-          <button
-            onClick={exportToCSV}
-            disabled={quotes.length === 0}
-            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Export CSV
-          </button>
-        </div>
-      </div>
+          {emailError && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
+              {emailError}
+            </div>
+          )}
 
-      {/* Search */}
-      <form onSubmit={handleSearch} className="flex gap-3">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, email, phone, or quote ID..."
-          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"
-        />
-        <button
-          type="submit"
-          className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700"
-        >
-          Search
-        </button>
-      </form>
+          {emailSuccess && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg dark:bg-green-900/30 dark:border-green-800 dark:text-green-300">
+              {emailSuccess}
+            </div>
+          )}
 
-      {/* Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        ) : quotes.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            No quotes found
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Quote ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Contact</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Loan</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Amount</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Payment</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Date</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {quotes.map((quote) => (
-                  <tr key={quote.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-sm text-blue-600 dark:text-blue-400">{quote.quoteId}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {quote.firstName} {quote.lastName}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                      <div>{quote.phone || '—'}</div>
-                      <div className="text-gray-400">{quote.email || '—'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                        {quote.loanType}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                      {formatCurrency(quote.loanAmount)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(quote.totalMonthlyPayment, true)}/mo
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                      {formatDate(quote.createdAt)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <a
-                          href={`/quote/${quote.quoteId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded"
-                          title="View quote page"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </a>
-                        <button
-                          onClick={() => copyQuoteLink(quote.quoteId)}
-                          className={`p-1.5 rounded ${copiedId === quote.quoteId ? 'text-green-600 bg-green-50 dark:bg-green-900/30' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'}`}
-                          title={copiedId === quote.quoteId ? 'Copied!' : 'Copy link'}
-                        >
-                          {copiedId === quote.quoteId ? (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : (
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                            </svg>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => openSendMessage(quote)}
-                          className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded"
-                          title="Send message"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setSelectedQuote(quote)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
-                          title="View details"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(quote.id)}
-                          disabled={deleting === quote.id}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded disabled:opacity-50"
-                          title="Delete"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+          {emailLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {/* Edit Form */}
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+                <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Edit Template</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  Customize the email sent when you manually send a quote to customers
+                </p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Email Subject
+                    </label>
+                    <input
+                      type="text"
+                      value={emailSettings.subject}
+                      onChange={(e) => setEmailSettings({ ...emailSettings, subject: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Your Loan Estimate - Quote #{quoteId}"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Use {'{quoteId}'} for quote number</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Greeting
+                    </label>
+                    <input
+                      type="text"
+                      value={emailSettings.greeting}
+                      onChange={(e) => setEmailSettings({ ...emailSettings, greeting: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Hi {firstName},"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Use {'{firstName}'} for customer&apos;s name</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Introduction Text
+                    </label>
+                    <textarea
+                      value={emailSettings.introText}
+                      onChange={(e) => setEmailSettings({ ...emailSettings, introText: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Thank you for using our mortgage calculator..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Body Text (after quote details)
+                    </label>
+                    <textarea
+                      value={emailSettings.bodyText}
+                      onChange={(e) => setEmailSettings({ ...emailSettings, bodyText: e.target.value })}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Ready to take the next step?..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        View Quote Button Text
+                      </label>
+                      <input
+                        type="text"
+                        value={emailSettings.buttonText}
+                        onChange={(e) => setEmailSettings({ ...emailSettings, buttonText: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Button Color
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={emailSettings.buttonColor}
+                          onChange={(e) => setEmailSettings({ ...emailSettings, buttonColor: e.target.value })}
+                          className="w-12 h-10 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={emailSettings.buttonColor}
+                          onChange={(e) => setEmailSettings({ ...emailSettings, buttonColor: e.target.value })}
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    </div>
+                  </div>
 
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={emailSettings.showApplyButton}
+                        onChange={(e) => setEmailSettings({ ...emailSettings, showApplyButton: e.target.checked })}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Show &quot;Apply Now&quot; Button</span>
+                    </label>
+                    {emailSettings.showApplyButton && (
+                      <input
+                        type="text"
+                        value={emailSettings.applyButtonText}
+                        onChange={(e) => setEmailSettings({ ...emailSettings, applyButtonText: e.target.value })}
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Apply Now"
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Closing Text
+                    </label>
+                    <textarea
+                      value={emailSettings.closingText}
+                      onChange={(e) => setEmailSettings({ ...emailSettings, closingText: e.target.value })}
+                      rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="If you have any questions..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Signature Text
+                    </label>
+                    <input
+                      type="text"
+                      value={emailSettings.signatureText}
+                      onChange={(e) => setEmailSettings({ ...emailSettings, signatureText: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Best regards,"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Header/Accent Color
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={emailSettings.primaryColor}
+                        onChange={(e) => setEmailSettings({ ...emailSettings, primaryColor: e.target.value })}
+                        className="w-12 h-10 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={emailSettings.primaryColor}
+                        onChange={(e) => setEmailSettings({ ...emailSettings, primaryColor: e.target.value })}
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                      onClick={saveEmailSettings}
+                      disabled={emailSaving}
+                      className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                    >
+                      {emailSaving ? 'Saving...' : 'Save Template'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview */}
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+                <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Live Preview</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">This is how your email will look to customers</p>
+
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+                  {/* Email Preview */}
+                  <div style={{ fontFamily: "'Helvetica Neue', Arial, sans-serif", maxWidth: '600px', margin: '0 auto', backgroundColor: '#ffffff' }}>
+                    {/* Header */}
+                    <div style={{
+                      background: emailSettings.primaryColor,
+                      color: 'white',
+                      padding: '30px',
+                      textAlign: 'center' as const
+                    }}>
+                      <h1 style={{ margin: 0, fontSize: '24px' }}>{sampleData.companyName}</h1>
+                    </div>
+
+                    {/* Content */}
+                    <div style={{ padding: '30px', backgroundColor: '#ffffff' }}>
+                      <p style={{ fontSize: '16px', color: '#333', margin: '0 0 20px' }}>
+                        {replacePlaceholders(emailSettings.greeting)}
+                      </p>
+
+                      <p style={{ fontSize: '14px', color: '#555', lineHeight: '1.6', margin: '0 0 20px' }}>
+                        {replacePlaceholders(emailSettings.introText)}
+                      </p>
+
+                      {/* Quote Details Box */}
+                      <div style={{
+                        background: '#f8f9fa',
+                        border: '1px solid #e5e5e5',
+                        borderRadius: '8px',
+                        padding: '20px',
+                        margin: '20px 0'
+                      }}>
+                        <h2 style={{
+                          margin: '0 0 15px',
+                          fontSize: '18px',
+                          color: emailSettings.primaryColor,
+                          borderBottom: `2px solid ${emailSettings.primaryColor}`,
+                          paddingBottom: '10px'
+                        }}>
+                          Quote #{sampleData.quoteId}
+                        </h2>
+                        <table style={{ width: '100%', fontSize: '14px' }}>
+                          <tbody>
+                            <tr>
+                              <td style={{ padding: '8px 0', color: '#666' }}>Loan Type:</td>
+                              <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' as const }}>{sampleData.loanType}</td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '8px 0', color: '#666' }}>Purchase Price:</td>
+                              <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' as const }}>{sampleData.purchasePrice}</td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '8px 0', color: '#666' }}>Loan Amount:</td>
+                              <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' as const }}>{sampleData.loanAmount}</td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '8px 0', color: '#666' }}>Interest Rate:</td>
+                              <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' as const }}>{sampleData.interestRate}%</td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '8px 0', color: '#666' }}>Loan Term:</td>
+                              <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' as const }}>{sampleData.loanTerm} years</td>
+                            </tr>
+                            <tr style={{ borderTop: '2px solid #ddd' }}>
+                              <td style={{ padding: '12px 0', color: '#333', fontWeight: 'bold', fontSize: '16px' }}>Est. Monthly Payment:</td>
+                              <td style={{ padding: '12px 0', fontWeight: 'bold', fontSize: '20px', textAlign: 'right' as const, color: emailSettings.primaryColor }}>{sampleData.totalMonthlyPayment}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <p style={{ fontSize: '14px', color: '#555', lineHeight: '1.6', margin: '20px 0' }}>
+                        {replacePlaceholders(emailSettings.bodyText)}
+                      </p>
+
+                      {/* Buttons */}
+                      <div style={{ textAlign: 'center' as const, margin: '25px 0' }}>
+                        <a
+                          href="#"
+                          style={{
+                            display: 'inline-block',
+                            background: emailSettings.buttonColor,
+                            color: 'white',
+                            padding: '14px 28px',
+                            textDecoration: 'none',
+                            borderRadius: '6px',
+                            fontWeight: 'bold',
+                            marginRight: emailSettings.showApplyButton ? '10px' : '0'
+                          }}
+                        >
+                          {emailSettings.buttonText}
+                        </a>
+                        {emailSettings.showApplyButton && (
+                          <a
+                            href="#"
+                            style={{
+                              display: 'inline-block',
+                              background: '#dc2626',
+                              color: 'white',
+                              padding: '14px 28px',
+                              textDecoration: 'none',
+                              borderRadius: '6px',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            {emailSettings.applyButtonText}
+                          </a>
+                        )}
+                      </div>
+
+                      <p style={{ fontSize: '14px', color: '#555', lineHeight: '1.6', margin: '20px 0' }}>
+                        {replacePlaceholders(emailSettings.closingText)}
+                      </p>
+
+                      <p style={{ fontSize: '14px', color: '#333', margin: '20px 0 5px' }}>
+                        {emailSettings.signatureText}<br />
+                        <strong>{sampleData.companyName} Team</strong>
+                      </p>
+                    </div>
+
+                    {/* Footer */}
+                    <div style={{
+                      background: '#f8f9fa',
+                      padding: '20px',
+                      textAlign: 'center' as const,
+                      fontSize: '12px',
+                      color: '#666',
+                      borderTop: '1px solid #e5e5e5'
+                    }}>
+                      <p style={{ margin: '0 0 5px' }}>{sampleData.companyName} | {sampleData.companyNmls}</p>
+                      <p style={{ margin: '0 0 5px' }}>{sampleData.companyPhone} | {sampleData.companyEmail}</p>
+                      <p style={{ margin: '0' }}>Equal Housing Opportunity</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Placeholder Reference */}
+                <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Available Placeholders</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
+                    <div><code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{'{firstName}'}</code> - Customer name</div>
+                    <div><code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{'{quoteId}'}</code> - Quote number</div>
+                    <div><code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{'{loanType}'}</code> - Loan type</div>
+                    <div><code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{'{purchasePrice}'}</code> - Purchase price</div>
+                    <div><code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{'{loanAmount}'}</code> - Loan amount</div>
+                    <div><code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{'{interestRate}'}</code> - Interest rate</div>
+                    <div><code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{'{loanTerm}'}</code> - Loan term</div>
+                    <div><code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{'{totalMonthlyPayment}'}</code> - Monthly payment</div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
-                disabled={pagination.page === 1}
-                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
-                disabled={pagination.page >= pagination.totalPages}
-                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Detail Modal */}
       {selectedQuote && (
@@ -813,30 +1336,6 @@ export default function AdminQuotesPage() {
                   </label>
                 </div>
               </div>
-
-              {/* Loan Officer Selection (for email from address) */}
-              {(sendChannel === 'email' || sendChannel === 'both') && loanOfficers.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Send Email From
-                  </label>
-                  <select
-                    value={selectedLoanOfficerId || ''}
-                    onChange={(e) => setSelectedLoanOfficerId(e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value="">quotes@americanmtg.com (Default)</option>
-                    {loanOfficers.map((officer) => (
-                      <option key={officer.id} value={officer.id}>
-                        {officer.name} ({officer.email})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Select a loan officer to send the email from their address
-                  </p>
-                </div>
-              )}
 
               {/* Custom Message */}
               <div>
@@ -1114,10 +1613,6 @@ export default function AdminQuotesPage() {
                   />
                 </div>
               </div>
-
-              <p className="text-xs text-gray-400">
-                * If email/phone is provided, the customer will automatically receive a confirmation with their quote link.
-              </p>
             </div>
 
             <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
