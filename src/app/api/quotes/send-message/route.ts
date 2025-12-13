@@ -14,6 +14,149 @@ const formatCurrency = (value: number): string => {
   }).format(value);
 };
 
+// Replace placeholders in template text
+function replacePlaceholders(text: string, data: Record<string, string>): string {
+  let result = text;
+  for (const [key, value] of Object.entries(data)) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+  }
+  return result;
+}
+
+// Build email HTML from template settings
+function buildEmailHtml(
+  templateSettings: {
+    greeting: string;
+    introText: string;
+    bodyText: string;
+    buttonText: string;
+    showApplyButton: boolean;
+    applyButtonText: string;
+    closingText: string;
+    signatureText: string;
+    primaryColor: string;
+    buttonColor: string;
+  },
+  quoteData: {
+    firstName: string;
+    quoteId: string;
+    loanType: string;
+    purchasePrice: string;
+    loanAmount: string;
+    interestRate: string;
+    loanTerm: number;
+    totalMonthlyPayment: string;
+    quoteUrl: string;
+    applyUrl: string;
+  },
+  companyInfo: {
+    company_name: string;
+    phone: string;
+    email: string;
+    nmls_id: string;
+  }
+): string {
+  const placeholders = {
+    firstName: quoteData.firstName,
+    quoteId: quoteData.quoteId,
+    loanType: quoteData.loanType,
+    purchasePrice: quoteData.purchasePrice,
+    loanAmount: quoteData.loanAmount,
+    interestRate: quoteData.interestRate,
+    loanTerm: String(quoteData.loanTerm),
+    totalMonthlyPayment: quoteData.totalMonthlyPayment,
+  };
+
+  const greeting = replacePlaceholders(templateSettings.greeting, placeholders);
+  const introText = replacePlaceholders(templateSettings.introText, placeholders);
+  const bodyText = replacePlaceholders(templateSettings.bodyText, placeholders);
+  const closingText = replacePlaceholders(templateSettings.closingText, placeholders);
+
+  const applyButtonHtml = templateSettings.showApplyButton
+    ? `<a href="${quoteData.applyUrl}" style="display: inline-block; background: #dc2626; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold;">${templateSettings.applyButtonText}</a>`
+    : '';
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="font-family: 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <!-- Header -->
+        <div style="background: ${templateSettings.primaryColor}; color: white; padding: 30px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px;">${companyInfo.company_name}</h1>
+        </div>
+
+        <!-- Content -->
+        <div style="padding: 30px;">
+          <p style="font-size: 16px; color: #333; margin: 0 0 20px;">${greeting}</p>
+
+          <p style="font-size: 14px; color: #555; line-height: 1.6; margin: 0 0 20px;">${introText}</p>
+
+          <!-- Quote Details Box -->
+          <div style="background: #f8f9fa; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 20px 0;">
+            <h2 style="margin: 0 0 15px; font-size: 18px; color: ${templateSettings.primaryColor}; border-bottom: 2px solid ${templateSettings.primaryColor}; padding-bottom: 10px;">
+              Quote #${quoteData.quoteId}
+            </h2>
+            <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Loan Type:</td>
+                <td style="padding: 8px 0; font-weight: bold; text-align: right;">${quoteData.loanType}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Purchase Price:</td>
+                <td style="padding: 8px 0; font-weight: bold; text-align: right;">${quoteData.purchasePrice}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Loan Amount:</td>
+                <td style="padding: 8px 0; font-weight: bold; text-align: right;">${quoteData.loanAmount}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Interest Rate:</td>
+                <td style="padding: 8px 0; font-weight: bold; text-align: right;">${quoteData.interestRate}%</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #666;">Loan Term:</td>
+                <td style="padding: 8px 0; font-weight: bold; text-align: right;">${quoteData.loanTerm} years</td>
+              </tr>
+              <tr style="border-top: 2px solid #ddd;">
+                <td style="padding: 12px 0; color: #333; font-weight: bold; font-size: 16px;">Est. Monthly Payment:</td>
+                <td style="padding: 12px 0; font-weight: bold; font-size: 20px; text-align: right; color: ${templateSettings.primaryColor};">${quoteData.totalMonthlyPayment}</td>
+              </tr>
+            </table>
+          </div>
+
+          <p style="font-size: 14px; color: #555; line-height: 1.6; margin: 20px 0;">${bodyText}</p>
+
+          <!-- Buttons -->
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${quoteData.quoteUrl}" style="display: inline-block; background: ${templateSettings.buttonColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-right: ${templateSettings.showApplyButton ? '10px' : '0'};">${templateSettings.buttonText}</a>
+            ${applyButtonHtml}
+          </div>
+
+          <p style="font-size: 14px; color: #555; line-height: 1.6; margin: 20px 0;">${closingText}</p>
+
+          <p style="font-size: 14px; color: #333; margin: 20px 0 5px;">
+            ${templateSettings.signatureText}<br>
+            <strong>${companyInfo.company_name} Team</strong>
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #e5e5e5;">
+          <p style="margin: 0 0 5px;">${companyInfo.company_name} | ${companyInfo.nmls_id}</p>
+          <p style="margin: 0 0 5px;">${companyInfo.phone} | ${companyInfo.email}</p>
+          <p style="margin: 0;">Equal Housing Opportunity</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 // POST - Send email/SMS to a quote recipient (admin only)
 export async function POST(request: NextRequest) {
   const auth = await requireAuth();
@@ -77,57 +220,72 @@ export async function POST(request: NextRequest) {
       nmls_id: footerData.nmls_info || 'NMLS ID #2676687'
     };
 
-    // Get loan officer info if provided (for custom from address)
-    let fromEmail = process.env.SENDGRID_QUOTES_FROM_EMAIL || 'quotes@americanmtg.com';
-    let fromName = process.env.SENDGRID_QUOTES_FROM_NAME || 'American Mortgage';
+    // Get email template settings
+    const templateResult = await pool.query(
+      'SELECT * FROM quote_email_settings WHERE id = 1'
+    );
+    const templateSettings = templateResult.rows[0] || {
+      subject: 'Your Loan Estimate - Quote #{quoteId}',
+      greeting: 'Hi {firstName},',
+      intro_text: 'Thank you for using our mortgage calculator! Here are the details of your personalized loan estimate:',
+      body_text: 'Ready to take the next step? Click the button below to view your full quote with additional details, or apply now to get started on your home loan journey.',
+      button_text: 'View Your Quote',
+      show_apply_button: true,
+      apply_button_text: 'Apply Now',
+      closing_text: "If you have any questions, feel free to reach out. We're here to help you every step of the way.",
+      signature_text: 'Best regards,',
+      primary_color: '#0f2e71',
+      button_color: '#0f2e71',
+    };
 
-    if (loanOfficerId) {
-      const officerResult = await pool.query(
-        'SELECT name, email FROM loan_officers WHERE id = $1 AND is_active = true',
-        [loanOfficerId]
-      );
-      if (officerResult.rows.length > 0) {
-        const officer = officerResult.rows[0];
-        fromEmail = officer.email;
-        fromName = officer.name;
-      }
-    }
+    // Get from address
+    const fromEmail = process.env.SENDGRID_QUOTES_FROM_EMAIL || 'preston@americanmtg.com';
+    const fromName = process.env.SENDGRID_QUOTES_FROM_NAME || 'Preston Million';
 
     // Send email if requested
     if ((channel === 'email' || channel === 'both') && quote.email) {
       try {
+        const quoteData = {
+          firstName: quote.first_name,
+          quoteId: quote.quote_id,
+          loanType: quote.loan_type,
+          purchasePrice: formatCurrency(parseFloat(quote.purchase_price)),
+          loanAmount: formatCurrency(parseFloat(quote.loan_amount)),
+          interestRate: parseFloat(quote.interest_rate).toFixed(3),
+          loanTerm: quote.loan_term,
+          totalMonthlyPayment: formatCurrency(parseFloat(quote.total_monthly_payment)),
+          quoteUrl,
+          applyUrl: `${baseUrl}/apply`,
+        };
+
         // If custom message provided, send custom email
         if (customMessage) {
           const customHtml = `
             <!DOCTYPE html>
             <html>
             <head>
-              <style>
-                body { font-family: 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { background: #f5f5f5; color: #1a1a1a; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; border-bottom: 3px solid #0f2e71; }
-                .content { background: #ffffff; padding: 30px; border: 1px solid #e5e5e5; }
-                .footer { background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666; border-radius: 0 0 8px 8px; }
-                .button { display: inline-block; background: #0f2e71; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
-                h1 { margin: 0; font-size: 28px; color: #0f2e71; }
-              </style>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
             </head>
-            <body>
-              <div class="container">
-                <div class="header">
-                  <h1>${companyInfo.company_name}</h1>
+            <body style="font-family: 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5;">
+              <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+                <div style="background: ${templateSettings.primary_color}; color: white; padding: 30px; text-align: center;">
+                  <h1 style="margin: 0; font-size: 24px;">${companyInfo.company_name}</h1>
                 </div>
-                <div class="content">
-                  <p>Hi ${quote.first_name},</p>
-                  <p>${customMessage.replace(/\n/g, '<br>')}</p>
-                  <p style="text-align: center;">
-                    <a href="${quoteUrl}" class="button">View Your Quote</a>
+                <div style="padding: 30px;">
+                  <p style="font-size: 16px; color: #333; margin: 0 0 20px;">Hi ${quote.first_name},</p>
+                  <p style="font-size: 14px; color: #555; line-height: 1.6; margin: 0 0 20px;">${customMessage.replace(/\n/g, '<br>')}</p>
+                  <div style="text-align: center; margin: 25px 0;">
+                    <a href="${quoteUrl}" style="display: inline-block; background: ${templateSettings.button_color}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold;">${templateSettings.button_text}</a>
+                  </div>
+                  <p style="font-size: 14px; color: #333; margin: 20px 0 5px;">
+                    ${templateSettings.signature_text}<br>
+                    <strong>${companyInfo.company_name} Team</strong>
                   </p>
-                  <p>Best regards,<br>${companyInfo.company_name} Team</p>
                 </div>
-                <div class="footer">
-                  <p>${companyInfo.company_name} | ${companyInfo.nmls_id}</p>
-                  <p>Equal Housing Opportunity</p>
+                <div style="background: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #e5e5e5;">
+                  <p style="margin: 0 0 5px;">${companyInfo.company_name} | ${companyInfo.nmls_id}</p>
+                  <p style="margin: 0;">Equal Housing Opportunity</p>
                 </div>
               </div>
             </body>
@@ -145,26 +303,38 @@ export async function POST(request: NextRequest) {
           });
           results.email = { success: emailResult.success, error: emailResult.error };
         } else {
-          // Send standard quote confirmation email
-          const { sendQuoteConfirmation } = await import('@/lib/notifications/email');
-          const emailResult = await sendQuoteConfirmation({
-            email: quote.email,
-            firstName: quote.first_name,
+          // Build email from template settings
+          const emailHtml = buildEmailHtml(
+            {
+              greeting: templateSettings.greeting,
+              introText: templateSettings.intro_text,
+              bodyText: templateSettings.body_text,
+              buttonText: templateSettings.button_text,
+              showApplyButton: templateSettings.show_apply_button,
+              applyButtonText: templateSettings.apply_button_text,
+              closingText: templateSettings.closing_text,
+              signatureText: templateSettings.signature_text,
+              primaryColor: templateSettings.primary_color,
+              buttonColor: templateSettings.button_color,
+            },
+            quoteData,
+            companyInfo
+          );
+
+          // Build subject with placeholders
+          const subject = replacePlaceholders(templateSettings.subject, {
             quoteId: quote.quote_id,
-            loanType: quote.loan_type,
-            purchasePrice: formatCurrency(parseFloat(quote.purchase_price)),
-            loanAmount: formatCurrency(parseFloat(quote.loan_amount)),
-            interestRate: parseFloat(quote.interest_rate),
-            loanTerm: quote.loan_term,
-            totalMonthlyPayment: formatCurrency(parseFloat(quote.total_monthly_payment)),
-            quoteUrl,
-            applyUrl: `${baseUrl}/apply`,
-            companyName: companyInfo.company_name,
-            companyPhone: companyInfo.phone,
-            companyEmail: companyInfo.email,
-            companyNmls: companyInfo.nmls_id,
+            firstName: quote.first_name,
+          });
+
+          const emailResult = await sendEmail({
+            to: quote.email,
+            subject,
+            template: EMAIL_TEMPLATES.QUOTE_CONFIRMATION,
             fromEmail,
             fromName,
+            html: emailHtml,
+            data: {},
           });
           results.email = { success: emailResult.success, error: emailResult.error };
         }

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
-import { requireAuth, errorResponse, successResponse } from '@/lib/api-auth';
-import { sendQuoteConfirmation } from '@/lib/notifications/email';
-import { sendQuoteConfirmationSms } from '@/lib/notifications/sms';
+import { requireAuth } from '@/lib/api-auth';
 
 // Format currency with accounting format: $1,234.56
 const formatCurrency = (value: number): string => {
@@ -115,67 +113,7 @@ export async function POST(request: NextRequest) {
     const baseUrl = `${protocol}://${host}`;
     const quoteUrl = `${baseUrl}/quote/${quoteId}`;
 
-    // Send email confirmation if email was provided
-    if (email) {
-      try {
-        // Get site settings for company info
-        const siteResult = await pool.query(
-          'SELECT company_name, phone, email FROM site_settings LIMIT 1'
-        );
-        const footerResult = await pool.query(
-          'SELECT nmls_info FROM footer LIMIT 1'
-        );
-
-        const site = siteResult.rows[0] || {};
-        const footerData = footerResult.rows[0] || {};
-
-        const companyInfo = {
-          company_name: site.company_name || 'American Mortgage',
-          phone: site.phone || '(870) 926-4052',
-          email: site.email || 'hello@americanmtg.com',
-          nmls_id: footerData.nmls_info || 'NMLS ID #2676687'
-        };
-
-        await sendQuoteConfirmation({
-          email,
-          firstName,
-          quoteId,
-          loanType,
-          purchasePrice: formatCurrency(purchasePrice),
-          loanAmount: formatCurrency(loanAmount),
-          interestRate,
-          loanTerm,
-          totalMonthlyPayment: formatCurrency(totalMonthlyPayment),
-          quoteUrl,
-          applyUrl: `${baseUrl}/apply`,
-          companyName: companyInfo.company_name,
-          companyPhone: companyInfo.phone,
-          companyEmail: companyInfo.email,
-          companyNmls: companyInfo.nmls_id,
-        });
-        console.log('[QUOTE] Email sent to:', email);
-      } catch (emailError) {
-        console.error('[QUOTE] Failed to send email:', emailError);
-        // Don't fail the quote creation if email fails
-      }
-    }
-
-    // Send SMS confirmation if phone was provided
-    if (phone) {
-      try {
-        await sendQuoteConfirmationSms({
-          phone,
-          firstName,
-          quoteId,
-          totalMonthlyPayment: formatCurrency(totalMonthlyPayment),
-          quoteUrl,
-        });
-        console.log('[QUOTE] SMS sent to:', phone);
-      } catch (smsError) {
-        console.error('[QUOTE] Failed to send SMS:', smsError);
-        // Don't fail the quote creation if SMS fails
-      }
-    }
+    // Note: Auto email/SMS disabled - admin can manually send from quotes panel
 
     return NextResponse.json({
       success: true,
