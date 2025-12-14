@@ -149,7 +149,7 @@ const formatDate = (dateString: string) => {
   });
 };
 
-type TabType = 'requests' | 'email-template';
+type TabType = 'requests' | 'email-template' | 'quote-page';
 
 export default function AdminQuotesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('requests');
@@ -197,6 +197,18 @@ export default function AdminQuotesPage() {
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailSuccess, setEmailSuccess] = useState<string | null>(null);
+
+  // Quote page settings state
+  const [quotePageSettings, setQuotePageSettings] = useState({
+    applyButtonText: 'Apply Now',
+    applyButtonColor: '#181F53',
+    applyButtonTextColor: '#ffffff',
+    applyButtonUrl: '/apply',
+  });
+  const [quotePageLoading, setQuotePageLoading] = useState(true);
+  const [quotePageSaving, setQuotePageSaving] = useState(false);
+  const [quotePageError, setQuotePageError] = useState<string | null>(null);
+  const [quotePageSuccess, setQuotePageSuccess] = useState<string | null>(null);
 
   const getQuoteUrl = (quoteId: string) => {
     return `${window.location.origin}/quote/${quoteId}`;
@@ -268,6 +280,7 @@ export default function AdminQuotesPage() {
     fetchQuotes();
     fetchLoanOfficers();
     fetchEmailSettings();
+    fetchQuotePageSettings();
   }, []);
 
   useEffect(() => {
@@ -317,6 +330,50 @@ export default function AdminQuotesPage() {
       setEmailError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setEmailSaving(false);
+    }
+  }
+
+  async function fetchQuotePageSettings() {
+    try {
+      const res = await fetch('/api/settings/quote-page', { credentials: 'include' });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.data) {
+          setQuotePageSettings(result.data);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch quote page settings:', err);
+    } finally {
+      setQuotePageLoading(false);
+    }
+  }
+
+  async function saveQuotePageSettings() {
+    setQuotePageSaving(true);
+    setQuotePageError(null);
+    setQuotePageSuccess(null);
+
+    try {
+      const res = await fetch('/api/settings/quote-page', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(quotePageSettings),
+      });
+
+      if (res.ok) {
+        setQuotePageSuccess('Quote page settings saved successfully!');
+        setTimeout(() => setQuotePageSuccess(null), 3000);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save settings');
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+      setQuotePageError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setQuotePageSaving(false);
     }
   }
 
@@ -578,12 +635,27 @@ export default function AdminQuotesPage() {
                 Email Template
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('quote-page')}
+              className={`pb-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'quote-page'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Quote Page
+              </div>
+            </button>
           </nav>
         </div>
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'requests' ? (
+      {activeTab === 'requests' && (
         <>
           {/* Search */}
           <form onSubmit={handleSearch} className="flex gap-3">
@@ -750,7 +822,9 @@ export default function AdminQuotesPage() {
             )}
           </div>
         </>
-      ) : (
+      )}
+
+      {activeTab === 'email-template' && (
         /* Email Template Tab */
         <div>
           {emailError && (
@@ -1233,6 +1307,180 @@ export default function AdminQuotesPage() {
                     <div><code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{'{interestRate}'}</code> - Interest rate</div>
                     <div><code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{'{loanTerm}'}</code> - Loan term</div>
                     <div><code className="bg-gray-200 dark:bg-gray-700 px-1 rounded">{'{totalMonthlyPayment}'}</code> - Monthly payment</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'quote-page' && (
+        /* Quote Page Settings Tab */
+        <div>
+          {quotePageError && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg dark:bg-red-900/30 dark:border-red-800 dark:text-red-300">
+              {quotePageError}
+            </div>
+          )}
+
+          {quotePageSuccess && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg dark:bg-green-900/30 dark:border-green-800 dark:text-green-300">
+              {quotePageSuccess}
+            </div>
+          )}
+
+          {quotePageLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Settings Form */}
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+                <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Quote Page Settings</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                  Customize the &quot;Apply Now&quot; button that appears on individual quote pages
+                </p>
+
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Button Text
+                    </label>
+                    <input
+                      type="text"
+                      value={quotePageSettings.applyButtonText}
+                      onChange={(e) => setQuotePageSettings({ ...quotePageSettings, applyButtonText: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Apply Now"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Button Color
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={quotePageSettings.applyButtonColor}
+                          onChange={(e) => setQuotePageSettings({ ...quotePageSettings, applyButtonColor: e.target.value })}
+                          className="h-10 w-12 border border-gray-300 dark:border-gray-600 rounded cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={quotePageSettings.applyButtonColor}
+                          onChange={(e) => setQuotePageSettings({ ...quotePageSettings, applyButtonColor: e.target.value })}
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                          placeholder="#181F53"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Text Color
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={quotePageSettings.applyButtonTextColor}
+                          onChange={(e) => setQuotePageSettings({ ...quotePageSettings, applyButtonTextColor: e.target.value })}
+                          className="h-10 w-12 border border-gray-300 dark:border-gray-600 rounded cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={quotePageSettings.applyButtonTextColor}
+                          onChange={(e) => setQuotePageSettings({ ...quotePageSettings, applyButtonTextColor: e.target.value })}
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                          placeholder="#ffffff"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Button URL
+                    </label>
+                    <input
+                      type="text"
+                      value={quotePageSettings.applyButtonUrl}
+                      onChange={(e) => setQuotePageSettings({ ...quotePageSettings, applyButtonUrl: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="/apply"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Enter a relative path (e.g., /apply) or full URL (e.g., https://example.com/apply)</p>
+                  </div>
+
+                  <div className="pt-4">
+                    <button
+                      onClick={saveQuotePageSettings}
+                      disabled={quotePageSaving}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {quotePageSaving ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Save Settings
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+                <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Preview</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                  See how the button will appear on quote pages
+                </p>
+
+                {/* Preview Card */}
+                <div className="bg-[#f5f5f7] rounded-xl p-6">
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 p-6 max-w-sm mx-auto">
+                    {/* Fake quote preview */}
+                    <div className="border-b border-gray-100 pb-4 mb-4">
+                      <h3 className="text-base font-semibold text-gray-900">Loan Estimate</h3>
+                      <p className="text-xs text-gray-500">for John Doe</p>
+                    </div>
+
+                    <div className="space-y-2 mb-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Estimated Total</span>
+                        <span className="font-bold text-[#181F53]">$2,727.02/mo</span>
+                      </div>
+                    </div>
+
+                    {/* Preview of the actual button */}
+                    <div className="space-y-2.5">
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <button className="flex items-center justify-center gap-2 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-medium">
+                          Save PDF
+                        </button>
+                        <button className="flex items-center justify-center gap-2 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-medium">
+                          Share
+                        </button>
+                      </div>
+                      <button
+                        className="w-full px-6 py-[14px] rounded-md text-[15px] font-semibold transition-all"
+                        style={{
+                          backgroundColor: quotePageSettings.applyButtonColor,
+                          color: quotePageSettings.applyButtonTextColor
+                        }}
+                      >
+                        {quotePageSettings.applyButtonText || 'Apply Now'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -43,12 +43,34 @@ const formatCurrency = (value: number): string => {
   }).format(value);
 };
 
+const formatCurrencyWhole = (value: number): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
+interface QuotePageSettings {
+  applyButtonText: string;
+  applyButtonColor: string;
+  applyButtonTextColor: string;
+  applyButtonUrl: string;
+}
+
 export default function QuotePage() {
   const params = useParams();
   const quoteId = params.quoteId as string;
 
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [footer, setFooter] = useState<FooterSettings | null>(null);
+  const [pageSettings, setPageSettings] = useState<QuotePageSettings>({
+    applyButtonText: 'Apply Now',
+    applyButtonColor: '#181F53',
+    applyButtonTextColor: '#ffffff',
+    applyButtonUrl: '/apply',
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -56,10 +78,10 @@ export default function QuotePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch quote and footer settings in parallel
-        const [quoteRes, footerRes] = await Promise.all([
+        const [quoteRes, footerRes, settingsRes] = await Promise.all([
           fetch(`/api/quotes/public/${quoteId}`),
-          fetch('/api/settings/footer')
+          fetch('/api/settings/footer'),
+          fetch('/api/settings/quote-page'),
         ]);
 
         if (!quoteRes.ok) {
@@ -79,7 +101,12 @@ export default function QuotePage() {
           const footerData = await footerRes.json();
           setFooter(footerData.data);
         }
-      } catch (err) {
+
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          setPageSettings(settingsData.data);
+        }
+      } catch {
         setError('Failed to load quote. Please try again later.');
       } finally {
         setLoading(false);
@@ -91,10 +118,10 @@ export default function QuotePage() {
     }
   }, [quoteId]);
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!quote || !footer) return;
 
-    generateQuotePDF(
+    await generateQuotePDF(
       {
         quoteId: quote.quoteId,
         firstName: quote.firstName,
@@ -124,8 +151,27 @@ export default function QuotePage() {
     );
   };
 
-  const handleCopyLink = async () => {
+  const handleShare = async () => {
     const url = window.location.href;
+
+    // Try Web Share API first (opens native share sheet on mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Loan Estimate',
+          text: `Check out this loan estimate for ${quote?.firstName} ${quote?.lastName}`,
+          url: url,
+        });
+        return; // Success, don't need to copy
+      } catch (err) {
+        // User cancelled or share failed, fall back to copy
+        if ((err as Error).name === 'AbortError') {
+          return; // User cancelled, don't copy
+        }
+      }
+    }
+
+    // Fall back to copying to clipboard
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -137,10 +183,10 @@ export default function QuotePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#181F53] mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your quote...</p>
+          <div className="w-8 h-8 border-2 border-gray-300 border-t-[#181F53] rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-gray-500 text-sm">Loading your quote...</p>
         </div>
       </div>
     );
@@ -148,14 +194,18 @@ export default function QuotePage() {
 
   if (error || !quote) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center px-4">
         <div className="text-center max-w-md">
-          <div className="text-6xl mb-4">404</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Quote Not Found</h1>
-          <p className="text-gray-600 mb-6">{error || 'This quote could not be found.'}</p>
+          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Quote Not Found</h1>
+          <p className="text-gray-500 text-sm mb-6">{error || 'This quote could not be found.'}</p>
           <Link
             href="/calculator"
-            className="inline-block bg-[#181F53] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#0f1538] transition-colors"
+            className="inline-block bg-[#181F53] text-white px-6 py-2.5 rounded-full text-sm font-medium hover:bg-[#0f1538] transition-all"
           >
             Create New Quote
           </Link>
@@ -166,166 +216,179 @@ export default function QuotePage() {
 
   const quoteDate = new Date(quote.createdAt).toLocaleDateString('en-US', {
     year: 'numeric',
-    month: 'long',
+    month: 'short',
     day: 'numeric',
   });
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="bg-[#181F53] text-white rounded-t-xl p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Loan Estimate</h1>
-              <p className="text-blue-200">Quote #{quote.quoteId}</p>
-            </div>
-            <div className="text-right text-sm">
-              <p className="text-blue-200">Created</p>
-              <p>{quoteDate}</p>
-            </div>
-          </div>
-        </div>
+  // Get mortgage insurance label based on loan type
+  const getMortgageInsuranceLabel = () => {
+    if (quote.monthlyMip > 0) return 'Mortgage Insurance (MIP)';
+    if (quote.monthlyPmi > 0) return 'Mortgage Insurance (PMI)';
+    return null;
+  };
 
-        {/* Quote Content */}
-        <div className="bg-white shadow-lg rounded-b-xl overflow-hidden">
-          {/* Prepared For */}
-          <div className="p-6 border-b">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Prepared For</p>
-            <p className="text-xl font-semibold text-gray-900">{quote.firstName} {quote.lastName}</p>
+  const mortgageInsurance = quote.monthlyMip > 0 ? quote.monthlyMip : quote.monthlyPmi;
+  const mortgageInsuranceLabel = getMortgageInsuranceLabel();
+
+  return (
+    <div className="min-h-screen bg-[#f5f5f7] py-6" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}>
+      <div className="max-w-xl mx-auto px-4">
+        {/* Main Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden">
+
+          {/* Header inside card */}
+          <div className="px-6 pt-5 pb-5 border-b border-gray-100">
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900 tracking-tight">Loan Estimate</h1>
+                <p className="text-xs text-gray-500 mt-0.5">for {quote.firstName} {quote.lastName}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs text-gray-400">{quoteDate}</span>
+                <p className="text-xs text-gray-500 mt-0.5">#{quote.quoteId}</p>
+              </div>
+            </div>
           </div>
 
           {/* Loan Details */}
-          <div className="p-6 border-b">
-            <h2 className="text-sm font-semibold text-[#181F53] uppercase tracking-wide mb-4">Loan Details</h2>
-            <div className="grid grid-cols-2 gap-4">
+          <div className="px-6 py-5">
+            {/* Loan Quick Stats - Row 1 */}
+            <div className="grid grid-cols-3 gap-4">
               <div>
-                <p className="text-xs text-gray-500">Loan Type</p>
-                <p className="font-medium">{quote.loanType}</p>
+                <p className="text-[11px] text-gray-400 uppercase tracking-wider">Loan Type</p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5">{quote.loanType}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Loan Amount</p>
-                <p className="font-medium">{formatCurrency(quote.loanAmount)}</p>
+                <p className="text-[11px] text-gray-400 uppercase tracking-wider">Purchase Price</p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5">{formatCurrencyWhole(quote.purchasePrice)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Purchase Price</p>
-                <p className="font-medium">{formatCurrency(quote.purchasePrice)}</p>
+                <p className="text-[11px] text-gray-400 uppercase tracking-wider">Loan Amount</p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5">{formatCurrencyWhole(quote.loanAmount)}</p>
+              </div>
+            </div>
+
+            {/* Loan Quick Stats - Row 2 */}
+            <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-[11px] text-gray-400 uppercase tracking-wider">Term</p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5">{quote.loanTerm} years</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Interest Rate</p>
-                <p className="font-medium">{quote.interestRate.toFixed(2)}%</p>
+                <p className="text-[11px] text-gray-400 uppercase tracking-wider">Down Payment</p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5">{quote.downPaymentPercent.toFixed(1)}%</p>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Down Payment</p>
-                <p className="font-medium">{formatCurrency(quote.downPaymentAmount)} ({quote.downPaymentPercent.toFixed(1)}%)</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Loan Term</p>
-                <p className="font-medium">{quote.loanTerm} years</p>
+                <p className="text-[11px] text-gray-400 uppercase tracking-wider">Rate</p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5">{quote.interestRate.toFixed(3)}%</p>
               </div>
             </div>
           </div>
 
-          {/* Monthly Payment */}
-          <div className="p-6 border-b bg-gray-50">
-            <h2 className="text-sm font-semibold text-[#181F53] uppercase tracking-wide mb-4">Estimated Monthly Payment</h2>
-            <div className="bg-[#181F53] text-white rounded-lg p-4 text-center mb-4">
-              <p className="text-3xl font-bold">{formatCurrency(quote.totalMonthlyPayment)}</p>
-              <p className="text-blue-200 text-sm">per month</p>
+          {/* Divider */}
+          <div className="h-px bg-gray-100 mx-6"></div>
+
+          {/* Monthly Payment Breakdown */}
+          <div className="px-6 py-5">
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-4">Monthly Payment</p>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Principal & Interest</span>
+                <span className="text-sm font-medium text-gray-900">{formatCurrency(quote.monthlyPi)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Property Taxes</span>
+                <span className="text-sm font-medium text-gray-900">{formatCurrency(quote.monthlyTaxes)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Homeowner&apos;s Insurance</span>
+                <span className="text-sm font-medium text-gray-900">{formatCurrency(quote.monthlyInsurance)}</span>
+              </div>
+              {mortgageInsurance > 0 && mortgageInsuranceLabel && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">{mortgageInsuranceLabel}</span>
+                  <span className="text-sm font-medium text-gray-900">{formatCurrency(mortgageInsurance)}</span>
+                </div>
+              )}
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Principal & Interest</span>
-                <span className="font-medium">{formatCurrency(quote.monthlyPi)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Property Insurance</span>
-                <span className="font-medium">{formatCurrency(quote.monthlyInsurance)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Property Taxes</span>
-                <span className="font-medium">{formatCurrency(quote.monthlyTaxes)}</span>
-              </div>
-              {quote.monthlyMip > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">FHA Mortgage Insurance (MIP)</span>
-                  <span className="font-medium">{formatCurrency(quote.monthlyMip)}</span>
-                </div>
-              )}
-              {quote.monthlyPmi > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Private Mortgage Insurance (PMI)</span>
-                  <span className="font-medium">{formatCurrency(quote.monthlyPmi)}</span>
-                </div>
-              )}
+
+            {/* Total */}
+            <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-900">Estimated Total</span>
+              <span className="text-xl font-bold text-[#181F53]">{formatCurrency(quote.totalMonthlyPayment)}<span className="text-sm font-normal text-gray-500">/mo</span></span>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="p-6 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+          <div className="px-6 pb-6 pt-2 space-y-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={handleDownloadPDF}
-                className="flex items-center justify-center gap-2 bg-[#181F53] text-white px-4 py-3 rounded-lg font-medium hover:bg-[#0f1538] transition-colors"
+                className="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Download PDF
+                Save PDF
               </button>
               <button
-                onClick={handleCopyLink}
-                className="flex items-center justify-center gap-2 border-2 border-[#181F53] text-[#181F53] px-4 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                onClick={handleShare}
+                className="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
               >
                 {copied ? (
                   <>
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Copied!
+                    <span className="text-green-600">Copied!</span>
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                     </svg>
-                    Copy Link
+                    Share
                   </>
                 )}
               </button>
             </div>
             <Link
-              href="/apply"
-              className="block w-full bg-green-600 text-white text-center px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
+              href={pageSettings.applyButtonUrl}
+              className="flex items-center justify-center w-full px-6 py-[14px] rounded-md text-[15px] font-semibold transition-all"
+              style={{
+                backgroundColor: pageSettings.applyButtonColor,
+                color: pageSettings.applyButtonTextColor
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.filter = 'brightness(0.85)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.filter = 'brightness(1)';
+              }}
             >
-              Apply Now
+              {pageSettings.applyButtonText}
             </Link>
           </div>
-
-          {/* Disclosure */}
-          <div className="px-6 pb-6">
-            <p className="text-xs text-gray-500 leading-relaxed">
-              <strong>Disclosure:</strong> This is an estimate only and does not constitute a loan approval, commitment to lend, or guarantee of rates or terms. Actual rates, terms, fees, and monthly payments may vary based on your credit profile, property type, loan-to-value ratio, and other factors. Interest rates are subject to change without notice. All loans are subject to credit approval.
-            </p>
-          </div>
-
-          {/* Footer */}
-          {footer && (
-            <div className="bg-gray-100 px-6 py-4 text-center text-sm text-gray-600">
-              <p className="font-medium">{footer.company_name}</p>
-              <p>{footer.nmls_id}</p>
-              <p>Equal Housing Opportunity</p>
-            </div>
-          )}
         </div>
 
-        {/* Back to Calculator */}
+        {/* Disclosure */}
+        <p className="mt-4 text-[11px] text-gray-400 leading-relaxed px-2">
+          This is an estimate only and does not constitute a loan approval or commitment to lend. Actual rates, terms, and payments may vary based on credit profile and other factors. All loans subject to credit approval.
+        </p>
+
+        {/* Footer */}
+        {footer && (
+          <div className="mt-6 text-center">
+            <p className="text-xs text-gray-500 font-medium">{footer.company_name}</p>
+            <p className="text-[11px] text-gray-400">{footer.nmls_id}</p>
+          </div>
+        )}
+
+        {/* Back Link */}
         <div className="text-center mt-6">
-          <Link
-            href="/calculator"
-            className="text-[#181F53] hover:underline"
-          >
-            Create a new quote
+          <Link href="/calculator" className="text-sm text-[#181F53] hover:underline">
+            Create new estimate
           </Link>
         </div>
       </div>

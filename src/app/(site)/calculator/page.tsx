@@ -199,12 +199,21 @@ export default function CalculatorPage() {
   const [quoteSubmitting, setQuoteSubmitting] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
-  const [quoteSuccess, setQuoteSuccess] = useState<{ quoteId: string; quoteUrl: string } | null>(null);
-  const [quoteLinkCopied, setQuoteLinkCopied] = useState(false);
+  const [quoteFormErrors, setQuoteFormErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    email?: string;
+  }>({});
 
   const purchasePriceSliderRef = useRef<HTMLInputElement>(null);
   const interestRateSliderRef = useRef<HTMLInputElement>(null);
   const downPaymentSliderRef = useRef<HTMLInputElement>(null);
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Fetch settings on mount
   useEffect(() => {
@@ -731,9 +740,92 @@ export default function CalculatorPage() {
   // Get enabled FAQ items
   const enabledFaqItems = (settings.faqItems || []).filter(item => item.enabled);
 
+  // Format phone number with dashes (handles leading 1 country code)
+  const formatPhoneNumber = (value: string): string => {
+    // Remove all non-digits
+    let digits = value.replace(/\D/g, '');
+
+    // Remove leading 1 if present (US country code)
+    if (digits.length > 10 && digits.startsWith('1')) {
+      digits = digits.slice(1);
+    }
+
+    // Limit to 10 digits
+    digits = digits.slice(0, 10);
+
+    // Format with dashes
+    if (digits.length >= 7) {
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    } else if (digits.length >= 4) {
+      return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    }
+    return digits;
+  };
+
+  // Handle phone input change with formatting
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setQuotePhone(formatted);
+    // Clear error when user starts typing
+    if (quoteFormErrors.phone) {
+      setQuoteFormErrors(prev => ({ ...prev, phone: undefined }));
+    }
+  };
+
+  // Validate email format
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Validate phone format (must be XXX-XXX-XXXX)
+  const isValidPhone = (phone: string): boolean => {
+    const phoneRegex = /^\d{3}-\d{3}-\d{4}$/;
+    return phoneRegex.test(phone);
+  };
+
   // Handle quote submission
   const handleQuoteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Custom validation
+    const errors: typeof quoteFormErrors = {};
+
+    if (!quoteFirstName.trim()) {
+      errors.firstName = 'First name is required';
+    }
+
+    if (!quoteLastName.trim()) {
+      errors.lastName = 'Last name is required';
+    }
+
+    if (settings.quotePhoneRequired !== false) {
+      if (!quotePhone.trim()) {
+        errors.phone = 'Phone number is required';
+      } else if (!isValidPhone(quotePhone)) {
+        errors.phone = 'Please enter a valid 10-digit phone number';
+      }
+    } else if (quotePhone.trim() && !isValidPhone(quotePhone)) {
+      errors.phone = 'Please enter a valid 10-digit phone number';
+    }
+
+    if (settings.quoteEmailRequired !== false) {
+      if (!quoteEmail.trim()) {
+        errors.email = 'Email is required';
+      } else if (!isValidEmail(quoteEmail)) {
+        errors.email = 'Please enter a valid email address';
+      }
+    } else if (quoteEmail.trim() && !isValidEmail(quoteEmail)) {
+      errors.email = 'Please enter a valid email address';
+    }
+
+    // If there are errors, show them and stop
+    if (Object.keys(errors).length > 0) {
+      setQuoteFormErrors(errors);
+      return;
+    }
+
+    setQuoteFormErrors({});
     setQuoteError(null);
     setQuoteSubmitting(true);
 
@@ -771,9 +863,10 @@ export default function CalculatorPage() {
 
       const { data } = await res.json();
 
-      // Generate and download PDF
-      if (companyInfo) {
-        generateQuotePDF(
+      // Only auto-download PDF on desktop (mobile users can download from quote page)
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+      if (companyInfo && !isMobile) {
+        await generateQuotePDF(
           {
             quoteId: data.quoteId,
             firstName: quoteFirstName,
@@ -798,11 +891,9 @@ export default function CalculatorPage() {
         );
       }
 
-      // Show success state with quote link
-      setQuoteSuccess({
-        quoteId: data.quoteId,
-        quoteUrl: data.quoteUrl || `${window.location.origin}/quote/${data.quoteId}`,
-      });
+      // Close modal and redirect to quote page
+      setShowQuoteModal(false);
+      window.location.href = `/quote/${data.quoteId}`;
     } catch (err) {
       setQuoteError(err instanceof Error ? err.message : 'Failed to create quote');
     } finally {
@@ -812,25 +903,12 @@ export default function CalculatorPage() {
 
   const handleCloseQuoteModal = () => {
     setShowQuoteModal(false);
-    setQuoteSuccess(null);
-    setQuoteLinkCopied(false);
     setQuoteFirstName('');
     setQuoteLastName('');
     setQuotePhone('');
     setQuoteEmail('');
     setQuoteError(null);
-  };
-
-  const handleCopyQuoteLink = async () => {
-    if (quoteSuccess) {
-      try {
-        await navigator.clipboard.writeText(quoteSuccess.quoteUrl);
-        setQuoteLinkCopied(true);
-        setTimeout(() => setQuoteLinkCopied(false), 2000);
-      } catch (err) {
-        console.error('Failed to copy:', err);
-      }
-    }
+    setQuoteFormErrors({});
   };
 
   // Show loading state until settings are loaded
@@ -1336,7 +1414,7 @@ export default function CalculatorPage() {
             {loanType && (
               <div style={{
                 marginTop: '16px',
-                marginBottom: '16px',
+                marginBottom: '8px',
                 textAlign: settings.downloadQuoteButtonFullWidth !== false ? 'left' : 'center'
               }}>
                 <button
@@ -1558,114 +1636,7 @@ export default function CalculatorPage() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {quoteSuccess ? (
-              /* Success State */
-              <>
-                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <div style={{
-                    width: '64px',
-                    height: '64px',
-                    backgroundColor: '#10B981',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 16px',
-                  }}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
-                  <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#181F53', margin: '0 0 8px' }}>
-                    Quote Created!
-                  </h2>
-                  <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>
-                    Quote #{quoteSuccess.quoteId} - Your PDF has been downloaded.
-                  </p>
-                </div>
-
-                <div style={{ backgroundColor: '#F3F4F6', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
-                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '8px' }}>
-                    Share your quote:
-                  </p>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="text"
-                      value={quoteSuccess.quoteUrl}
-                      readOnly
-                      style={{
-                        flex: 1,
-                        padding: '10px 12px',
-                        border: '1px solid #ddd',
-                        borderRadius: '6px',
-                        fontSize: '13px',
-                        backgroundColor: '#fff',
-                        color: '#666',
-                      }}
-                    />
-                    <button
-                      onClick={handleCopyQuoteLink}
-                      style={{
-                        padding: '10px 16px',
-                        backgroundColor: quoteLinkCopied ? '#10B981' : '#181F53',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {quoteLinkCopied ? 'Copied!' : 'Copy'}
-                    </button>
-                  </div>
-                </div>
-
-                {quoteEmail && (
-                  <p style={{ fontSize: '13px', color: '#666', marginBottom: '16px', textAlign: 'center' }}>
-                    A copy has also been sent to {quoteEmail}
-                  </p>
-                )}
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <a
-                    href={quoteSuccess.quoteUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      padding: '12px',
-                      border: '2px solid #181F53',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#181F53',
-                      textAlign: 'center',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    View Quote
-                  </a>
-                  <button
-                    onClick={handleCloseQuoteModal}
-                    style={{
-                      padding: '12px',
-                      backgroundColor: '#181F53',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      color: '#fff',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Done
-                  </button>
-                </div>
-              </>
-            ) : (
-              /* Form State */
-              <>
+            <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                   <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#181F53', margin: 0 }}>
                     Download Your Quote
@@ -1705,7 +1676,7 @@ export default function CalculatorPage() {
                   </div>
                 )}
 
-                <form onSubmit={handleQuoteSubmit}>
+                <form onSubmit={handleQuoteSubmit} noValidate>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '6px' }}>
@@ -1714,18 +1685,28 @@ export default function CalculatorPage() {
                       <input
                         type="text"
                         value={quoteFirstName}
-                        onChange={(e) => setQuoteFirstName(e.target.value)}
-                        required
+                        onChange={(e) => {
+                          setQuoteFirstName(e.target.value);
+                          if (quoteFormErrors.firstName) {
+                            setQuoteFormErrors(prev => ({ ...prev, firstName: undefined }));
+                          }
+                        }}
                         style={{
                           width: '100%',
                           padding: '12px 14px',
-                          border: '1px solid #ddd',
+                          border: quoteFormErrors.firstName ? '2px solid #DC2626' : '1px solid #ddd',
                           borderRadius: '8px',
                           fontSize: '16px',
                           boxSizing: 'border-box',
+                          outline: 'none',
                         }}
                         placeholder="John"
                       />
+                      {quoteFormErrors.firstName && (
+                        <p style={{ color: '#DC2626', fontSize: '13px', marginTop: '4px', margin: '4px 0 0' }}>
+                          {quoteFormErrors.firstName}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#333', marginBottom: '6px' }}>
@@ -1734,18 +1715,28 @@ export default function CalculatorPage() {
                       <input
                         type="text"
                         value={quoteLastName}
-                        onChange={(e) => setQuoteLastName(e.target.value)}
-                        required
+                        onChange={(e) => {
+                          setQuoteLastName(e.target.value);
+                          if (quoteFormErrors.lastName) {
+                            setQuoteFormErrors(prev => ({ ...prev, lastName: undefined }));
+                          }
+                        }}
                         style={{
                           width: '100%',
                           padding: '12px 14px',
-                          border: '1px solid #ddd',
+                          border: quoteFormErrors.lastName ? '2px solid #DC2626' : '1px solid #ddd',
                           borderRadius: '8px',
                           fontSize: '16px',
                           boxSizing: 'border-box',
+                          outline: 'none',
                         }}
                         placeholder="Smith"
                       />
+                      {quoteFormErrors.lastName && (
+                        <p style={{ color: '#DC2626', fontSize: '13px', marginTop: '4px', margin: '4px 0 0' }}>
+                          {quoteFormErrors.lastName}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1756,18 +1747,23 @@ export default function CalculatorPage() {
                     <input
                       type="tel"
                       value={quotePhone}
-                      onChange={(e) => setQuotePhone(e.target.value)}
-                      required={settings.quotePhoneRequired !== false}
+                      onChange={handlePhoneChange}
                       style={{
                         width: '100%',
                         padding: '12px 14px',
-                        border: '1px solid #ddd',
+                        border: quoteFormErrors.phone ? '2px solid #DC2626' : '1px solid #ddd',
                         borderRadius: '8px',
                         fontSize: '16px',
                         boxSizing: 'border-box',
+                        outline: 'none',
                       }}
-                      placeholder="(555) 123-4567"
+                      placeholder="555-123-4567"
                     />
+                    {quoteFormErrors.phone && (
+                      <p style={{ color: '#DC2626', fontSize: '13px', marginTop: '4px', margin: '4px 0 0' }}>
+                        {quoteFormErrors.phone}
+                      </p>
+                    )}
                   </div>
 
                   <div style={{ marginBottom: '24px' }}>
@@ -1777,18 +1773,28 @@ export default function CalculatorPage() {
                     <input
                       type="email"
                       value={quoteEmail}
-                      onChange={(e) => setQuoteEmail(e.target.value)}
-                      required={settings.quoteEmailRequired !== false}
+                      onChange={(e) => {
+                        setQuoteEmail(e.target.value);
+                        if (quoteFormErrors.email) {
+                          setQuoteFormErrors(prev => ({ ...prev, email: undefined }));
+                        }
+                      }}
                       style={{
                         width: '100%',
                         padding: '12px 14px',
-                        border: '1px solid #ddd',
+                        border: quoteFormErrors.email ? '2px solid #DC2626' : '1px solid #ddd',
                         borderRadius: '8px',
                         fontSize: '16px',
                         boxSizing: 'border-box',
+                        outline: 'none',
                       }}
                       placeholder="john@example.com"
                     />
+                    {quoteFormErrors.email && (
+                      <p style={{ color: '#DC2626', fontSize: '13px', marginTop: '4px', margin: '4px 0 0' }}>
+                        {quoteFormErrors.email}
+                      </p>
+                    )}
                   </div>
 
                   <button
@@ -1840,7 +1846,6 @@ export default function CalculatorPage() {
                   Your information is secure and will not be shared.
                 </p>
               </>
-            )}
           </div>
         </div>
       )}
