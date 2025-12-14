@@ -48,10 +48,17 @@ interface QuoteEmailSettings {
   buttonText: string;
   showApplyButton: boolean;
   applyButtonText: string;
+  applyUrl: string;
   closingText: string;
   signatureText: string;
   primaryColor: string;
   buttonColor: string;
+  senderName: string;
+  senderTitle: string;
+  senderPhone: string;
+  senderEmail: string;
+  senderNmls: string;
+  senderWebsite: string;
 }
 
 const defaultEmailSettings: QuoteEmailSettings = {
@@ -62,11 +69,32 @@ const defaultEmailSettings: QuoteEmailSettings = {
   buttonText: 'View Your Quote',
   showApplyButton: true,
   applyButtonText: 'Apply Now',
-  closingText: "If you have any questions, feel free to reach out. We're here to help you every step of the way.",
+  applyUrl: '/apply',
+  closingText: "If you have any questions, feel free to reach out. I'm here to help you every step of the way.",
   signatureText: 'Best regards,',
-  primaryColor: '#0f2e71',
+  primaryColor: '#f5f5f5',
   buttonColor: '#0f2e71',
+  senderName: 'Preston Million',
+  senderTitle: 'Managing Partner',
+  senderPhone: '(870) 926-4052',
+  senderEmail: 'preston@americanmtg.com',
+  senderNmls: 'NMLS #123456',
+  senderWebsite: 'americanmtg.com',
 };
+
+// Get the correct mortgage insurance label based on loan type
+function getMortgageInsuranceLabel(loanType: string): string {
+  switch (loanType.toUpperCase()) {
+    case 'FHA':
+      return 'MIP';
+    case 'VA':
+      return 'VA Funding Fee';
+    case 'USDA':
+      return 'Guarantee Fee';
+    default: // Conventional, Jumbo, etc.
+      return 'PMI';
+  }
+}
 
 // Sample data for email preview
 const sampleData = {
@@ -74,10 +102,16 @@ const sampleData = {
   quoteId: '1234',
   loanType: 'FHA',
   purchasePrice: '$350,000',
-  loanAmount: '$338,450',
+  downPayment: '$12,250',
+  downPaymentPercent: '3.5',
+  loanAmount: '$337,750',
   interestRate: '6.5',
   loanTerm: 30,
-  totalMonthlyPayment: '$2,847.23',
+  principalInterest: '$2,134.58',
+  mortgageInsurance: '$154.94',
+  propertyTaxes: '$291.67',
+  homeInsurance: '$145.83',
+  totalMonthlyPayment: '$2,727.02',
   companyName: 'American Mortgage',
   companyPhone: '(870) 926-4052',
   companyEmail: 'hello@americanmtg.com',
@@ -853,6 +887,22 @@ export default function AdminQuotesPage() {
                     )}
                   </div>
 
+                  {emailSettings.showApplyButton && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Apply Button URL
+                      </label>
+                      <input
+                        type="text"
+                        value={emailSettings.applyUrl}
+                        onChange={(e) => setEmailSettings({ ...emailSettings, applyUrl: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="/apply or https://example.com/apply"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Use relative path (e.g., /apply) or full URL</p>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Closing Text
@@ -899,6 +949,81 @@ export default function AdminQuotesPage() {
                     </div>
                   </div>
 
+                  {/* Sender Info Section */}
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Sender Information</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">This info appears in the email signature</p>
+
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Name</label>
+                          <input
+                            type="text"
+                            value={emailSettings.senderName}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, senderName: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Preston Million"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Title</label>
+                          <input
+                            type="text"
+                            value={emailSettings.senderTitle}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, senderTitle: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Loan Officer"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Phone</label>
+                          <input
+                            type="text"
+                            value={emailSettings.senderPhone}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, senderPhone: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="(870) 926-4052"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+                          <input
+                            type="email"
+                            value={emailSettings.senderEmail}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, senderEmail: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="preston@americanmtg.com"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">NMLS ID</label>
+                          <input
+                            type="text"
+                            value={emailSettings.senderNmls}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, senderNmls: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="NMLS #123456"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Website</label>
+                          <input
+                            type="text"
+                            value={emailSettings.senderWebsite}
+                            onChange={(e) => setEmailSettings({ ...emailSettings, senderWebsite: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="americanmtg.com"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                       onClick={saveEmailSettings}
@@ -919,23 +1044,31 @@ export default function AdminQuotesPage() {
                 <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
                   {/* Email Preview */}
                   <div style={{ fontFamily: "'Helvetica Neue', Arial, sans-serif", maxWidth: '600px', margin: '0 auto', backgroundColor: '#ffffff' }}>
-                    {/* Header */}
+                    {/* Header - Grey with Logo */}
                     <div style={{
                       background: emailSettings.primaryColor,
-                      color: 'white',
-                      padding: '30px',
-                      textAlign: 'center' as const
+                      padding: '12px 20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
                     }}>
-                      <h1 style={{ margin: 0, fontSize: '24px' }}>{sampleData.companyName}</h1>
+                      <img
+                        src="/cms-media/png-01.png"
+                        alt="American Mortgage"
+                        style={{ height: '36px', width: 'auto', display: 'block' }}
+                      />
+                      <span style={{ fontSize: '11px', color: '#666', fontWeight: '500' }}>
+                        Quote #{sampleData.quoteId}
+                      </span>
                     </div>
 
                     {/* Content */}
-                    <div style={{ padding: '30px', backgroundColor: '#ffffff' }}>
-                      <p style={{ fontSize: '16px', color: '#333', margin: '0 0 20px' }}>
+                    <div style={{ padding: '24px 24px 20px', backgroundColor: '#ffffff' }}>
+                      <p style={{ fontSize: '14px', color: '#333', margin: '0 0 16px' }}>
                         {replacePlaceholders(emailSettings.greeting)}
                       </p>
 
-                      <p style={{ fontSize: '14px', color: '#555', lineHeight: '1.6', margin: '0 0 20px' }}>
+                      <p style={{ fontSize: '13px', color: '#555', lineHeight: '1.6', margin: '0 0 16px' }}>
                         {replacePlaceholders(emailSettings.introText)}
                       </p>
 
@@ -944,64 +1077,79 @@ export default function AdminQuotesPage() {
                         background: '#f8f9fa',
                         border: '1px solid #e5e5e5',
                         borderRadius: '8px',
-                        padding: '20px',
-                        margin: '20px 0'
+                        padding: '16px',
+                        margin: '16px 0'
                       }}>
-                        <h2 style={{
-                          margin: '0 0 15px',
-                          fontSize: '18px',
-                          color: emailSettings.primaryColor,
-                          borderBottom: `2px solid ${emailSettings.primaryColor}`,
-                          paddingBottom: '10px'
-                        }}>
-                          Quote #{sampleData.quoteId}
-                        </h2>
-                        <table style={{ width: '100%', fontSize: '14px' }}>
+                        <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
                           <tbody>
                             <tr>
-                              <td style={{ padding: '8px 0', color: '#666' }}>Loan Type:</td>
-                              <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' as const }}>{sampleData.loanType}</td>
+                              <td style={{ padding: '6px 0', color: '#666' }}>Loan Type:</td>
+                              <td style={{ padding: '6px 0', fontWeight: '600', textAlign: 'right' as const }}>{sampleData.loanType}</td>
                             </tr>
                             <tr>
-                              <td style={{ padding: '8px 0', color: '#666' }}>Purchase Price:</td>
-                              <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' as const }}>{sampleData.purchasePrice}</td>
+                              <td style={{ padding: '6px 0', color: '#666' }}>Purchase Price:</td>
+                              <td style={{ padding: '6px 0', fontWeight: '600', textAlign: 'right' as const }}>{sampleData.purchasePrice}</td>
                             </tr>
                             <tr>
-                              <td style={{ padding: '8px 0', color: '#666' }}>Loan Amount:</td>
-                              <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' as const }}>{sampleData.loanAmount}</td>
+                              <td style={{ padding: '6px 0', color: '#666' }}>Down Payment:</td>
+                              <td style={{ padding: '6px 0', fontWeight: '600', textAlign: 'right' as const }}>{sampleData.downPayment} ({sampleData.downPaymentPercent}%)</td>
                             </tr>
                             <tr>
-                              <td style={{ padding: '8px 0', color: '#666' }}>Interest Rate:</td>
-                              <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' as const }}>{sampleData.interestRate}%</td>
+                              <td style={{ padding: '6px 0', color: '#666' }}>Loan Amount:</td>
+                              <td style={{ padding: '6px 0', fontWeight: '600', textAlign: 'right' as const }}>{sampleData.loanAmount}</td>
                             </tr>
                             <tr>
-                              <td style={{ padding: '8px 0', color: '#666' }}>Loan Term:</td>
-                              <td style={{ padding: '8px 0', fontWeight: 'bold', textAlign: 'right' as const }}>{sampleData.loanTerm} years</td>
+                              <td style={{ padding: '6px 0', color: '#666' }}>Interest Rate:</td>
+                              <td style={{ padding: '6px 0', fontWeight: '600', textAlign: 'right' as const }}>{sampleData.interestRate}%</td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '6px 0', color: '#666' }}>Loan Term:</td>
+                              <td style={{ padding: '6px 0', fontWeight: '600', textAlign: 'right' as const }}>{sampleData.loanTerm} years</td>
+                            </tr>
+                            <tr style={{ borderTop: '1px solid #ddd' }}>
+                              <td colSpan={2} style={{ padding: '10px 0 6px', color: '#333', fontWeight: '600', fontSize: '13px' }}>Monthly Payment Breakdown:</td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '4px 0', color: '#666' }}>Principal & Interest:</td>
+                              <td style={{ padding: '4px 0', fontWeight: '500', textAlign: 'right' as const }}>{sampleData.principalInterest}</td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '4px 0', color: '#666' }}>{getMortgageInsuranceLabel(sampleData.loanType)}:</td>
+                              <td style={{ padding: '4px 0', fontWeight: '500', textAlign: 'right' as const }}>{sampleData.mortgageInsurance}</td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '4px 0', color: '#666' }}>Property Taxes:</td>
+                              <td style={{ padding: '4px 0', fontWeight: '500', textAlign: 'right' as const }}>{sampleData.propertyTaxes}</td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '4px 0', color: '#666' }}>Homeowner&apos;s Insurance:</td>
+                              <td style={{ padding: '4px 0', fontWeight: '500', textAlign: 'right' as const }}>{sampleData.homeInsurance}</td>
                             </tr>
                             <tr style={{ borderTop: '2px solid #ddd' }}>
-                              <td style={{ padding: '12px 0', color: '#333', fontWeight: 'bold', fontSize: '16px' }}>Est. Monthly Payment:</td>
-                              <td style={{ padding: '12px 0', fontWeight: 'bold', fontSize: '20px', textAlign: 'right' as const, color: emailSettings.primaryColor }}>{sampleData.totalMonthlyPayment}</td>
+                              <td style={{ padding: '10px 0 0', color: '#333', fontWeight: '600', fontSize: '14px' }}>Est. Monthly Payment:</td>
+                              <td style={{ padding: '10px 0 0', fontWeight: 'bold', fontSize: '18px', textAlign: 'right' as const, color: '#dc2626' }}>{sampleData.totalMonthlyPayment}</td>
                             </tr>
                           </tbody>
                         </table>
                       </div>
 
-                      <p style={{ fontSize: '14px', color: '#555', lineHeight: '1.6', margin: '20px 0' }}>
+                      <p style={{ fontSize: '13px', color: '#555', lineHeight: '1.6', margin: '16px 0' }}>
                         {replacePlaceholders(emailSettings.bodyText)}
                       </p>
 
                       {/* Buttons */}
-                      <div style={{ textAlign: 'center' as const, margin: '25px 0' }}>
+                      <div style={{ textAlign: 'center' as const, margin: '20px 0' }}>
                         <a
                           href="#"
                           style={{
                             display: 'inline-block',
                             background: emailSettings.buttonColor,
                             color: 'white',
-                            padding: '14px 28px',
+                            padding: '12px 24px',
                             textDecoration: 'none',
                             borderRadius: '6px',
-                            fontWeight: 'bold',
+                            fontWeight: '600',
+                            fontSize: '14px',
                             marginRight: emailSettings.showApplyButton ? '10px' : '0'
                           }}
                         >
@@ -1014,10 +1162,11 @@ export default function AdminQuotesPage() {
                               display: 'inline-block',
                               background: '#dc2626',
                               color: 'white',
-                              padding: '14px 28px',
+                              padding: '12px 24px',
                               textDecoration: 'none',
                               borderRadius: '6px',
-                              fontWeight: 'bold'
+                              fontWeight: '600',
+                              fontSize: '14px'
                             }}
                           >
                             {emailSettings.applyButtonText}
@@ -1025,28 +1174,49 @@ export default function AdminQuotesPage() {
                         )}
                       </div>
 
-                      <p style={{ fontSize: '14px', color: '#555', lineHeight: '1.6', margin: '20px 0' }}>
+                      <p style={{ fontSize: '13px', color: '#555', lineHeight: '1.6', margin: '16px 0' }}>
                         {replacePlaceholders(emailSettings.closingText)}
                       </p>
 
-                      <p style={{ fontSize: '14px', color: '#333', margin: '20px 0 5px' }}>
-                        {emailSettings.signatureText}<br />
-                        <strong>{sampleData.companyName} Team</strong>
-                      </p>
+                      {/* Personalized Signature */}
+                      <div style={{ margin: '20px 0 0', paddingTop: '16px', borderTop: '1px solid #eee' }}>
+                        <p style={{ fontSize: '13px', color: '#333', margin: '0 0 12px' }}>
+                          {emailSettings.signatureText}
+                        </p>
+                        <p style={{ fontSize: '14px', color: '#333', margin: '0 0 2px' }}>
+                          <span style={{ fontWeight: '600' }}>{emailSettings.senderName}</span> | {emailSettings.senderTitle}
+                        </p>
+                        <p style={{ fontSize: '12px', color: '#666', margin: '0 0 2px' }}>
+                          {sampleData.companyName}
+                        </p>
+                        <p style={{ fontSize: '11px', color: '#888', margin: '0 0 2px' }}>
+                          {emailSettings.senderNmls}
+                        </p>
+                        <p style={{ fontSize: '12px', color: '#666', margin: '0 0 2px' }}>
+                          {emailSettings.senderPhone}
+                        </p>
+                        <p style={{ fontSize: '12px', color: '#666', margin: '0 0 2px' }}>
+                          {emailSettings.senderEmail}
+                        </p>
+                        <p style={{ fontSize: '12px', color: '#0f2e71', margin: '0' }}>
+                          {emailSettings.senderWebsite}
+                        </p>
+                      </div>
                     </div>
 
                     {/* Footer */}
                     <div style={{
                       background: '#f8f9fa',
-                      padding: '20px',
+                      padding: '14px 20px',
                       textAlign: 'center' as const,
-                      fontSize: '12px',
+                      fontSize: '11px',
                       color: '#666',
                       borderTop: '1px solid #e5e5e5'
                     }}>
-                      <p style={{ margin: '0 0 5px' }}>{sampleData.companyName} | {sampleData.companyNmls}</p>
-                      <p style={{ margin: '0 0 5px' }}>{sampleData.companyPhone} | {sampleData.companyEmail}</p>
-                      <p style={{ margin: '0' }}>Equal Housing Opportunity</p>
+                      <p style={{ margin: '0 0 8px', fontSize: '10px', color: '#888', lineHeight: '1.4' }}>
+                        This is an estimate only. Actual rates, terms, and fees may vary based on credit qualifications, property details, and current market conditions.
+                      </p>
+                      <p style={{ margin: '0' }}>{sampleData.companyName}</p>
                     </div>
                   </div>
                 </div>

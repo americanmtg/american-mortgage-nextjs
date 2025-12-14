@@ -22,10 +22,17 @@ export async function GET() {
         buttonText: 'View Your Quote',
         showApplyButton: true,
         applyButtonText: 'Apply Now',
-        closingText: "If you have any questions, feel free to reach out. We're here to help you every step of the way.",
+        applyUrl: '/apply',
+        closingText: "If you have any questions, feel free to reach out. I'm here to help you every step of the way.",
         signatureText: 'Best regards,',
-        primaryColor: '#0f2e71',
+        primaryColor: '#f5f5f5',
         buttonColor: '#0f2e71',
+        senderName: 'Preston Million',
+        senderTitle: 'Managing Partner',
+        senderPhone: '(870) 926-4052',
+        senderEmail: 'preston@americanmtg.com',
+        senderNmls: 'NMLS #123456',
+        senderWebsite: 'americanmtg.com',
       })
     }
 
@@ -38,10 +45,17 @@ export async function GET() {
       buttonText: settings.button_text,
       showApplyButton: settings.show_apply_button,
       applyButtonText: settings.apply_button_text,
+      applyUrl: settings.apply_url || '/apply',
       closingText: settings.closing_text,
       signatureText: settings.signature_text,
       primaryColor: settings.primary_color,
       buttonColor: settings.button_color,
+      senderName: settings.sender_name || 'Preston Million',
+      senderTitle: settings.sender_title || 'Managing Partner',
+      senderPhone: settings.sender_phone || '(870) 926-4052',
+      senderEmail: settings.sender_email || 'preston@americanmtg.com',
+      senderNmls: settings.sender_nmls || 'NMLS #123456',
+      senderWebsite: settings.sender_website || 'americanmtg.com',
     })
   } catch (error) {
     console.error('Error fetching quote email settings:', error)
@@ -64,18 +78,26 @@ export async function PUT(request: NextRequest) {
       buttonText,
       showApplyButton,
       applyButtonText,
+      applyUrl,
       closingText,
       signatureText,
       primaryColor,
       buttonColor,
+      senderName,
+      senderTitle,
+      senderPhone,
+      senderEmail,
+      senderNmls,
+      senderWebsite,
     } = body
 
     const result = await pool.query(
       `INSERT INTO quote_email_settings (
         id, subject, greeting, intro_text, body_text, button_text,
-        show_apply_button, apply_button_text, closing_text, signature_text,
-        primary_color, button_color, updated_at
-      ) VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+        show_apply_button, apply_button_text, apply_url, closing_text, signature_text,
+        primary_color, button_color, sender_name, sender_title, sender_phone,
+        sender_email, sender_nmls, sender_website, updated_at
+      ) VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW())
       ON CONFLICT (id) DO UPDATE SET
         subject = EXCLUDED.subject,
         greeting = EXCLUDED.greeting,
@@ -84,10 +106,17 @@ export async function PUT(request: NextRequest) {
         button_text = EXCLUDED.button_text,
         show_apply_button = EXCLUDED.show_apply_button,
         apply_button_text = EXCLUDED.apply_button_text,
+        apply_url = EXCLUDED.apply_url,
         closing_text = EXCLUDED.closing_text,
         signature_text = EXCLUDED.signature_text,
         primary_color = EXCLUDED.primary_color,
         button_color = EXCLUDED.button_color,
+        sender_name = EXCLUDED.sender_name,
+        sender_title = EXCLUDED.sender_title,
+        sender_phone = EXCLUDED.sender_phone,
+        sender_email = EXCLUDED.sender_email,
+        sender_nmls = EXCLUDED.sender_nmls,
+        sender_website = EXCLUDED.sender_website,
         updated_at = NOW()
       RETURNING *`,
       [
@@ -98,10 +127,17 @@ export async function PUT(request: NextRequest) {
         buttonText || 'View Your Quote',
         showApplyButton !== false,
         applyButtonText || 'Apply Now',
+        applyUrl || '/apply',
         closingText || "If you have any questions, feel free to reach out.",
         signatureText || 'Best regards,',
-        primaryColor || '#0f2e71',
+        primaryColor || '#f5f5f5',
         buttonColor || '#0f2e71',
+        senderName || 'Preston Million',
+        senderTitle || 'Managing Partner',
+        senderPhone || '(870) 926-4052',
+        senderEmail || 'preston@americanmtg.com',
+        senderNmls || 'NMLS #123456',
+        senderWebsite || 'americanmtg.com',
       ]
     )
 
@@ -114,10 +150,17 @@ export async function PUT(request: NextRequest) {
       buttonText: settings.button_text,
       showApplyButton: settings.show_apply_button,
       applyButtonText: settings.apply_button_text,
+      applyUrl: settings.apply_url,
       closingText: settings.closing_text,
       signatureText: settings.signature_text,
       primaryColor: settings.primary_color,
       buttonColor: settings.button_color,
+      senderName: settings.sender_name,
+      senderTitle: settings.sender_title,
+      senderPhone: settings.sender_phone,
+      senderEmail: settings.sender_email,
+      senderNmls: settings.sender_nmls,
+      senderWebsite: settings.sender_website,
     })
   } catch (error) {
     console.error('Error updating quote email settings:', error)

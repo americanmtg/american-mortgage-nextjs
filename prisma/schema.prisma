@@ -983,5 +983,10 @@ model quote_email_settings {
   signature_text     String    @default("Best regards,") @db.VarChar(255)
   primary_color      String    @default("#0f2e71") @db.VarChar(20)
   button_color       String    @default("#0f2e71") @db.VarChar(20)
+  sender_name        String?   @default("Preston Million") @db.VarChar(255)
+  sender_title       String?   @default("Loan Officer") @db.VarChar(255)
+  sender_phone       String?   @default("(870) 926-4052") @db.VarChar(50)
+  sender_email       String?   @default("preston@americanmtg.com") @db.VarChar(255)
+  sender_nmls        String?   @default("NMLS #123456") @db.VarChar(50)
   updated_at         DateTime? @default(now()) @db.Timestamp(6)
 }
