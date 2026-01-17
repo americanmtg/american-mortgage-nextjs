@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
+    "@types/google.maps": "^3.58.1",
     "@types/node": "^20.12.12",
     "@types/pg": "^8.15.6",
     "@types/react": "^18.3.2",
