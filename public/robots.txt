@@ -1,3 +1,17 @@
-# Development environment - do not index
+# American Mortgage - robots.txt
+#
+# PRODUCTION: Use these rules to allow search engine indexing
 User-agent: *
-Disallow: /
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /claim/
+Disallow: /private/
+
+Sitemap: https://americanmtg.com/sitemap.xml
+
+# ============================================
+# STAGING/DEVELOPMENT: Uncomment below to block all crawling
+# --------------------------------------------
+# User-agent: *
+# Disallow: /

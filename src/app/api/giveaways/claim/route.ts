@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+import { sendClaimConfirmation } from '@/lib/notifications/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
       include: {
         giveaway: true,
         prize_claim: true,
+        entry: true,
       },
     });
 
@@ -157,8 +159,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // TODO: Send confirmation email
-    // await sendClaimConfirmationEmail(winner.entry.email, winner.giveaway.title);
+    // Send confirmation email
+    const shippingAddress = [
+      legalName,
+      addressLine1,
+      addressLine2,
+      `${city}, ${state} ${zipCode}`,
+    ].filter(Boolean).join('<br>');
+
+    await sendClaimConfirmation({
+      email: winner.entry.email,
+      firstName: winner.entry.first_name,
+      giveawayTitle: winner.giveaway.title,
+      prizeTitle: winner.giveaway.prize_title || 'Prize',
+      shippingAddress,
+      giveawayId: winner.giveaway.id,
+      winnerId: winner.id,
+    });
 
     return NextResponse.json({
       success: true,
