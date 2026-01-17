@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import styles from './prequalify.module.css';
 
@@ -177,11 +177,31 @@ export default function PrequalifyPage() {
   // Refs for Google Places
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const locationWrapperRef = useRef<HTMLDivElement>(null);
+  const scrollAnchorRef = useRef<HTMLButtonElement>(null);
 
   // Disable progress bar animation on initial mount
   useEffect(() => {
     const timer = setTimeout(() => setIsInitialMount(false), 100);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Override scroll-behavior: smooth for iOS Safari compatibility
+  useEffect(() => {
+    // Save original values
+    const htmlEl = document.documentElement;
+    const bodyEl = document.body;
+    const originalHtmlBehavior = htmlEl.style.scrollBehavior;
+    const originalBodyBehavior = bodyEl.style.scrollBehavior;
+
+    // Set to auto for the duration of this page
+    htmlEl.style.scrollBehavior = 'auto';
+    bodyEl.style.scrollBehavior = 'auto';
+
+    // Restore on unmount
+    return () => {
+      htmlEl.style.scrollBehavior = originalHtmlBehavior;
+      bodyEl.style.scrollBehavior = originalBodyBehavior;
+    };
   }, []);
 
   // Load Google Maps script
@@ -212,6 +232,19 @@ export default function PrequalifyPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Track previous step to detect changes
+  const prevStepRef = useRef(currentStep);
+
+  // Scroll to top synchronously when step changes
+  useLayoutEffect(() => {
+    if (prevStepRef.current !== currentStep) {
+      window.scrollTo(0, 0);
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      prevStepRef.current = currentStep;
+    }
+  }, [currentStep]);
 
   // Fetch place suggestions using the new Places API
   const fetchSuggestions = useCallback(async (input: string) => {
@@ -353,6 +386,7 @@ export default function PrequalifyPage() {
     // Auto-advance to next step immediately if flag is set
     if (autoAdvance) {
       setCurrentStep(prev => prev + 1);
+      setTimeout(scrollToTop, 100);
     }
   };
 
@@ -445,6 +479,11 @@ export default function PrequalifyPage() {
     return false;
   };
 
+  const scrollToTop = () => {
+    // Simple scroll to top - scroll-behavior is already set to 'auto' via useEffect
+    window.scrollTo(0, 0);
+  };
+
   const handleNext = () => {
     const isLocationStep =
       (formData.loanType === 'purchase' && currentStep === 14) ||
@@ -462,11 +501,13 @@ export default function PrequalifyPage() {
       return;
     }
     setCurrentStep(prev => prev + 1);
+    setTimeout(scrollToTop, 50);
   };
 
   const handleBack = () => {
     if (currentStep > 0) {
       setCurrentStep(prev => prev - 1);
+      setTimeout(scrollToTop, 50);
     }
   };
 
@@ -672,6 +713,7 @@ export default function PrequalifyPage() {
                     handleSelect('militaryService', false);
                     handleSelect('militaryBranch', '');
                     setCurrentStep(7); // Skip branch question
+                    setTimeout(scrollToTop, 100);
                   }}
                   fullWidth
                 />
@@ -819,6 +861,7 @@ export default function PrequalifyPage() {
                     // Skip first-time buyer step, go directly to credit score (step 13)
                     handleSelect('firstTimeBuyer', false); // Set a default
                     setCurrentStep(13);
+                    setTimeout(scrollToTop, 100);
                   }}
                   fullWidth
                 />
@@ -1538,6 +1581,14 @@ export default function PrequalifyPage() {
 
   return (
     <div className={styles.container}>
+      {/* Hidden scroll anchor for iOS */}
+      <div id="top" style={{ position: 'absolute', top: 0 }} />
+      <button
+        ref={scrollAnchorRef}
+        style={{ position: 'absolute', top: 0, left: 0, opacity: 0, pointerEvents: 'none', height: 0, width: 0, border: 'none', padding: 0 }}
+        tabIndex={-1}
+        aria-hidden="true"
+      />
       <div className={styles.formWrapper}>
         {/* Progress Bar */}
         <div className={styles.progressContainer}>
@@ -1549,6 +1600,10 @@ export default function PrequalifyPage() {
                 transition: isInitialMount ? 'none' : undefined
               }}
             />
+          </div>
+          {/* Step Indicator */}
+          <div className={styles.stepIndicator}>
+            <span className={styles.stepText}>Step {currentStep + 1} of {totalSteps}</span>
           </div>
         </div>
 
