@@ -39,6 +39,25 @@ interface FooterData {
   nmlsInfo?: string;
 }
 
+// Track button clicks with Meta Pixel - delays navigation to ensure tracking fires
+const trackButtonClick = (e: React.MouseEvent, buttonId: string, buttonColor: string, buttonText: string, url: string) => {
+  e.preventDefault();
+
+  if (typeof window !== 'undefined' && (window as any).fbq) {
+    (window as any).fbq('trackCustom', 'CTAClick', {
+      button_id: buttonId,
+      button_color: buttonColor,
+      button_text: buttonText,
+      page: '/meta'
+    });
+  }
+
+  // Small delay to ensure tracking request fires before navigation
+  setTimeout(() => {
+    window.location.href = url;
+  }, 300);
+};
+
 export default function MetaLandingPage() {
   const [metaSettings, setMetaSettings] = useState<MetaSettings | null>(null);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
@@ -194,6 +213,7 @@ export default function MetaLandingPage() {
                         backgroundColor: settings.applyButton.color,
                         color: settings.applyButton.textColor,
                       }}
+                      onClick={(e) => trackButtonClick(e, 'apply_header_desktop', settings.applyButton.color, settings.applyButton.text, settings.applyButton.url)}
                     >
                       {settings.applyButton.iconEnabled && (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -234,6 +254,7 @@ export default function MetaLandingPage() {
                       backgroundColor: settings.applyButton.color,
                       color: settings.applyButton.textColor,
                     }}
+                    onClick={(e) => trackButtonClick(e, 'apply_header_mobile', settings.applyButton.color, settings.applyButton.text, settings.applyButton.url)}
                   >
                     {settings.applyButton.iconEnabled && (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -272,6 +293,7 @@ export default function MetaLandingPage() {
                 backgroundColor: settings.ctaButton.color,
                 color: settings.ctaButton.textColor,
               }}
+              onClick={(e) => trackButtonClick(e, 'cta_main', settings.ctaButton.color, settings.ctaButton.text, settings.ctaButton.url)}
             >
               {settings.ctaButton.iconEnabled && (
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

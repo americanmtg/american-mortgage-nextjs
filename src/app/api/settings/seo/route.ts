@@ -41,6 +41,7 @@ export async function GET() {
         filename: settings.media_seo_settings_og_image_idTomedia.filename,
       } : null,
       googleAnalyticsId: settings.google_analytics_id,
+      metaPixelId: settings.meta_pixel_id,
       updatedAt: settings.updated_at,
     })
   } catch (error) {
@@ -65,6 +66,7 @@ export async function PUT(request: NextRequest) {
       ogDescription,
       ogImageId,
       googleAnalyticsId,
+      metaPixelId,
     } = body
 
     const existing = await prisma.seo_settings.findFirst()
@@ -82,6 +84,7 @@ export async function PUT(request: NextRequest) {
           ...(ogDescription !== undefined && { og_description: ogDescription }),
           ...(ogImageId !== undefined && { og_image_id: ogImageId }),
           ...(googleAnalyticsId !== undefined && { google_analytics_id: googleAnalyticsId }),
+          ...(metaPixelId !== undefined && { meta_pixel_id: metaPixelId }),
           updated_at: new Date(),
         },
         include: {
@@ -100,6 +103,7 @@ export async function PUT(request: NextRequest) {
           og_description: ogDescription || null,
           og_image_id: ogImageId || null,
           google_analytics_id: googleAnalyticsId || null,
+          meta_pixel_id: metaPixelId || null,
         },
         include: {
           media_seo_settings_favicon_idTomedia: true,
@@ -116,6 +120,7 @@ export async function PUT(request: NextRequest) {
       ogTitle: settings.og_title,
       ogDescription: settings.og_description,
       googleAnalyticsId: settings.google_analytics_id,
+      metaPixelId: settings.meta_pixel_id,
       updatedAt: settings.updated_at,
     })
   } catch (error) {

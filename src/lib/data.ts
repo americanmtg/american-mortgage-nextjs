@@ -246,6 +246,7 @@ export async function getSeoSettings() {
       ogDescription: settings.og_description,
       ogImage: transformMedia(settings.media_seo_settings_og_image_idTomedia),
       googleAnalyticsId: settings.google_analytics_id,
+      metaPixelId: settings.meta_pixel_id,
       updatedAt: settings.updated_at,
       createdAt: settings.created_at,
     }

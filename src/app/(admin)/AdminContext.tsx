@@ -71,8 +71,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         setUser(data.user);
       } else {
         setUser(null);
-        // Redirect to login if not on login page
-        if (pathname !== '/admin/login') {
+        if (window.location.pathname !== '/admin/login') {
           router.push('/admin/login');
         }
       }
@@ -82,7 +81,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [pathname, router]);
+  }, [router]);
 
   const logout = async () => {
     try {
@@ -94,14 +93,15 @@ export function AdminProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Check session once on mount, not on every route change
   useEffect(() => {
-    // Skip auth check on login page
     if (pathname === '/admin/login') {
       setIsLoading(false);
       return;
     }
     refreshSession();
-  }, [pathname, refreshSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // Check for saved theme preference
