@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { programId, records, batchName } = body as {
+    let { programId, records, batchName } = body as {
       programId: number;
       records: SubmitRecord[];
       batchName?: string;
@@ -61,6 +61,40 @@ export async function POST(request: NextRequest) {
         return errorResponse(`Record ${i + 1}: address, city, state, and zip are required`, 400)
       }
     }
+
+    // Pre-submission dedup: skip people who already have scored results in this program
+    const skipped: string[] = []
+    const filteredRecords: SubmitRecord[] = []
+    for (const r of records) {
+      const existing = await prisma.prescreen_leads.findFirst({
+        where: {
+          program_id: programId,
+          first_name: { equals: r.firstName.trim(), mode: 'insensitive' },
+          last_name: { equals: r.lastName.trim(), mode: 'insensitive' },
+          middle_score: { not: null },
+          tier: { in: ['tier_1', 'tier_2', 'tier_3', 'below'] },
+        },
+        select: { id: true, middle_score: true, tier: true },
+      })
+      if (existing) {
+        skipped.push(`${r.firstName} ${r.lastName} (already has score ${existing.middle_score}, lead #${existing.id})`)
+      } else {
+        filteredRecords.push(r)
+      }
+    }
+
+    if (filteredRecords.length === 0) {
+      return successResponse({
+        message: 'All records already have scored results',
+        skipped,
+        batchId: null,
+        qualifiedCount: 0,
+        failedCount: 0,
+      })
+    }
+
+    // Replace records with filtered list for submission
+    records = filteredRecords
 
     // Create batch
     const batch = await prisma.prescreen_batches.create({
@@ -201,14 +235,16 @@ export async function POST(request: NextRequest) {
         ]
 
         for (const b of bureauEntries) {
-          if (b.output) {
+          // Save a row for every enabled bureau — is_hit distinguishes "got data" vs "checked but no data"
+          const wasChecked = q.outputs?.hasOwnProperty(b.bureau)
+          if (b.output || wasChecked) {
             await prisma.prescreen_results.create({
               data: {
                 lead_id: lead.id,
                 bureau: b.bureau,
                 credit_score: b.score,
-                is_hit: true,
-                raw_output: b.output as any,
+                is_hit: !!b.output,
+                raw_output: b.output ? (b.output as any) : null,
               },
             })
           }
@@ -252,8 +288,10 @@ export async function POST(request: NextRequest) {
             dob_encrypted: dobEncrypted,
             tier: 'filtered',
             is_qualified: false,
-            match_status: 'no_match',
-            error_message: f.error || f.reason || 'No match found',
+            match_status: f.match ? 'matched' : 'no_match',
+            error_message: f.match
+              ? 'No bureau scores returned (all bureaus returned null outputs)'
+              : f.error || f.reason || 'No match found',
           },
         })
 
@@ -298,6 +336,57 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Dedup: clean up old api_error/pending leads for the same people in this program
+    try {
+      const nameKeys = records.map(r => ({
+        first: r.firstName.trim().toLowerCase(),
+        last: r.lastName.trim().toLowerCase(),
+      }))
+
+      // Find old leads with matching names that are stale (api_error or pending)
+      const oldLeads = await prisma.prescreen_leads.findMany({
+        where: {
+          program_id: programId,
+          batch_id: { not: batch.id },
+          match_status: { in: ['api_error', 'pending'] },
+          OR: nameKeys.map(n => ({
+            first_name: { equals: n.first, mode: 'insensitive' as const },
+            last_name: { equals: n.last, mode: 'insensitive' as const },
+          })),
+        },
+        select: { id: true, batch_id: true },
+      })
+
+      if (oldLeads.length > 0) {
+        const oldIds = oldLeads.map(l => l.id)
+
+        // Clean up old leads and their results
+        await prisma.prescreen_results.deleteMany({ where: { lead_id: { in: oldIds } } })
+        await prisma.prescreen_audit_log.updateMany({
+          where: { lead_id: { in: oldIds } },
+          data: { lead_id: null },
+        })
+        await prisma.prescreen_leads.deleteMany({ where: { id: { in: oldIds } } })
+
+        // Update old batch record counts
+        const affectedBatchIds = Array.from(new Set(oldLeads.map(l => l.batch_id).filter(Boolean))) as number[]
+        for (const oldBatchId of affectedBatchIds) {
+          const remaining = await prisma.prescreen_leads.count({ where: { batch_id: oldBatchId } })
+          if (remaining === 0) {
+            await prisma.prescreen_batches.update({
+              where: { id: oldBatchId },
+              data: { total_records: 0, qualified_count: 0, failed_count: 0, updated_at: new Date() },
+            })
+          }
+        }
+
+        console.log(`Dedup: removed ${oldIds.length} old api_error/pending leads for resubmitted people`)
+      }
+    } catch (dedupErr) {
+      // Non-fatal — log but don't fail the submission
+      console.error('Dedup cleanup error (non-fatal):', dedupErr)
+    }
+
     // Update batch with final counts
     const finalStatus =
       failedCount === 0 ? 'completed' :
@@ -338,6 +427,7 @@ export async function POST(request: NextRequest) {
       totalSubmitted: records.length,
       qualifiedCount,
       failedCount,
+      skipped: skipped.length > 0 ? skipped : undefined,
       status: program.altair_program_id ? finalStatus : 'pending',
     })
   } catch (error) {

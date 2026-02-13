@@ -46,13 +46,13 @@ const tierBadge = (tier: string, isDark: boolean) => {
   }
 };
 
-const tierLabel = (tier: string) => {
+const tierLabel = (tier: string, matchStatus?: string) => {
   switch (tier) {
     case 'tier_1': return 'Tier 1';
     case 'tier_2': return 'Tier 2';
     case 'tier_3': return 'Tier 3';
     case 'below': return 'Below';
-    case 'filtered': return 'Filtered';
+    case 'filtered': return matchStatus === 'no_match' ? 'No Match' : 'Unqualified';
     default: return 'Pending';
   }
 };
@@ -101,10 +101,17 @@ export default function PrescreenResults() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedData, setExpandedData] = useState<any>(null);
 
+  // Retry queue
+  const [queuedIds, setQueuedIds] = useState<Set<number>>(new Set());
+
   useEffect(() => {
     fetch('/api/prescreen/programs', { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => setPrograms(data.data?.items || []))
+      .catch(console.error);
+    fetch('/api/prescreen/retry-queue', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => setQueuedIds(new Set((data.data?.leads || []).map((l: any) => l.id))))
       .catch(console.error);
   }, []);
 
@@ -163,6 +170,27 @@ export default function PrescreenResults() {
     } catch (err) {
       console.error('Failed to load detail:', err);
     }
+  };
+
+  const toggleRetryQueue = async (leadId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const isQueued = queuedIds.has(leadId);
+    const newQueued = !isQueued;
+    try {
+      const res = await fetch('/api/prescreen/retry-queue', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ leadIds: [leadId], queued: newQueued }),
+      });
+      if (res.ok) {
+        setQueuedIds((prev) => {
+          const next = new Set(prev);
+          if (newQueued) next.add(leadId); else next.delete(leadId);
+          return next;
+        });
+      }
+    } catch { /* ignore */ }
   };
 
   const handleSort = (field: string) => {
@@ -238,7 +266,7 @@ export default function PrescreenResults() {
             <option value="tier_2">Tier 2 (580-619)</option>
             <option value="tier_3">Tier 3 (500-579)</option>
             <option value="below">Below (under 500)</option>
-            <option value="filtered">Filtered</option>
+            <option value="filtered">Unqualified</option>
             <option value="pending">Pending</option>
           </select>
           <select value={programFilter} onChange={(e) => { setProgramFilter(e.target.value); setPage(1); }} className={selectBase}>
@@ -303,6 +331,7 @@ export default function PrescreenResults() {
                     { key: '', label: 'Cost' },
                     { key: 'firm_offer_sent', label: 'Firm Offer' },
                     { key: 'created_at', label: 'Date' },
+                    { key: '', label: '' },
                   ].map((col, i) => (
                     <th
                       key={i}
@@ -351,7 +380,7 @@ export default function PrescreenResults() {
                       </td>
                       <td className="px-5 py-3.5">
                         <span className={`inline-flex items-center px-2 py-0.5 text-[11px] rounded-full font-medium ${tierBadge(lead.tier, isDark)}`}>
-                          {tierLabel(lead.tier)}
+                          {tierLabel(lead.tier, lead.matchStatus)}
                         </span>
                       </td>
                       <td className={`px-5 py-3.5 text-sm tabular-nums ${lead.bureauScores?.eq != null ? (isDark ? 'text-gray-300' : 'text-gray-700') : (isDark ? 'text-gray-700' : 'text-gray-200')}`}>
@@ -378,10 +407,24 @@ export default function PrescreenResults() {
                       <td className={`px-5 py-3.5 text-xs tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                         {new Date(lead.createdAt).toLocaleDateString()}
                       </td>
+                      <td className="px-3 py-3.5">
+                        {(lead.matchStatus === 'api_error' || lead.matchStatus === 'no_match' || lead.tier === 'pending' || (lead.tier === 'filtered' && lead.matchStatus === 'matched')) && (
+                          <button
+                            onClick={(e) => toggleRetryQueue(lead.id, e)}
+                            className={`px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+                              queuedIds.has(lead.id)
+                                ? (isDark ? 'bg-amber-900/30 text-amber-400 hover:bg-amber-900/50' : 'bg-amber-50 text-amber-700 hover:bg-amber-100')
+                                : (isDark ? 'bg-gray-700/60 text-gray-400 hover:bg-gray-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')
+                            }`}
+                          >
+                            {queuedIds.has(lead.id) ? 'Queued' : '+ Retry'}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                     {expandedId === lead.id && expandedData && (
                       <tr key={`${lead.id}-expanded`}>
-                        <td colSpan={10} className={`px-6 py-5 ${isDark ? 'bg-gray-900/50' : 'bg-gray-50/50'}`}>
+                        <td colSpan={11} className={`px-6 py-5 ${isDark ? 'bg-gray-900/50' : 'bg-gray-50/50'}`}>
                           {/* Error message for failed leads - keep red for genuine errors */}
                           {expandedData.errorMessage && (
                             <div className={`rounded-lg border px-4 py-3 mb-4 ${isDark ? 'bg-red-900/20 border-red-800/30' : 'bg-red-50/80 border-red-300/40'}`}>

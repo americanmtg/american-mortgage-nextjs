@@ -45,6 +45,10 @@ export default function PrescreenSubmit() {
   // Batch queue
   const [batchRecords, setBatchRecords] = useState<BatchRecord[]>([]);
 
+  // Retry queue
+  const [retryLeads, setRetryLeads] = useState<any[]>([]);
+  const [loadingRetry, setLoadingRetry] = useState(false);
+
   // Single entry fields
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -66,7 +70,76 @@ export default function PrescreenSubmit() {
         if (data.data?.items) setPrograms(data.data.items);
       })
       .catch(console.error);
+    loadRetryQueue();
   }, []);
+
+  const loadRetryQueue = () => {
+    fetch('/api/prescreen/retry-queue', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => setRetryLeads(data.data?.leads || []))
+      .catch(console.error);
+  };
+
+  const loadRetryIntoBatch = async () => {
+    if (retryLeads.length === 0) return;
+    setLoadingRetry(true);
+    try {
+      // Decrypt SSN/DOB for each lead via the decrypt API
+      const records: BatchRecord[] = [];
+      for (const lead of retryLeads) {
+        let ssn = '';
+        let dob = '';
+        if (lead.hasSsn) {
+          try {
+            const res = await fetch(`/api/prescreen/results/${lead.id}/decrypt`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ field: 'ssn' }),
+            });
+            if (res.ok) { const d = await res.json(); ssn = d.data?.value || ''; }
+          } catch { /* skip */ }
+        }
+        if (lead.hasDob) {
+          try {
+            const res = await fetch(`/api/prescreen/results/${lead.id}/decrypt`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ field: 'dob' }),
+            });
+            if (res.ok) { const d = await res.json(); dob = d.data?.value || ''; }
+          } catch { /* skip */ }
+        }
+        records.push({
+          firstName: lead.firstName,
+          lastName: lead.lastName,
+          middleInitial: lead.middleInitial || '',
+          address: lead.address || '',
+          city: lead.city || '',
+          state: lead.state || '',
+          zip: lead.zip || '',
+          ssn: ssn.replace(/\D/g, ''),
+          dob,
+        });
+      }
+      setBatchRecords(prev => [...prev, ...records]);
+
+      // Clear retry queue flags
+      const ids = retryLeads.map((l: any) => l.id);
+      await fetch('/api/prescreen/retry-queue', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ leadIds: ids, queued: false }),
+      });
+      setRetryLeads([]);
+    } catch (err) {
+      console.error('Failed to load retry queue:', err);
+    } finally {
+      setLoadingRetry(false);
+    }
+  };
 
   const inputClass = `w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-all ${
     isDark
@@ -286,6 +359,33 @@ export default function PrescreenSubmit() {
           </div>
         </div>
       </div>
+
+      {/* Retry Queue Banner */}
+      {retryLeads.length > 0 && (
+        <div className={`mb-4 rounded-lg border px-5 py-4 flex items-center justify-between ${
+          isDark ? 'bg-amber-900/10 border-amber-800/30' : 'bg-amber-50/80 border-amber-200/60'
+        }`}>
+          <div>
+            <p className={`text-sm font-medium ${isDark ? 'text-amber-400' : 'text-amber-800'}`}>
+              {retryLeads.length} lead{retryLeads.length !== 1 ? 's' : ''} queued for retry
+            </p>
+            <p className={`text-xs mt-0.5 ${isDark ? 'text-amber-500/70' : 'text-amber-600/70'}`}>
+              {retryLeads.map(l => `${l.firstName} ${l.lastName}`).join(', ')}
+            </p>
+          </div>
+          <button
+            onClick={loadRetryIntoBatch}
+            disabled={loadingRetry}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+              isDark
+                ? 'bg-amber-900/30 text-amber-300 hover:bg-amber-900/50'
+                : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+            }`}
+          >
+            {loadingRetry ? 'Loading...' : 'Load into Batch'}
+          </button>
+        </div>
+      )}
 
       {/* Error */}
       {error && (

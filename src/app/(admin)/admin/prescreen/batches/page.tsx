@@ -40,6 +40,9 @@ export default function PrescreenBatches() {
   const [editName, setEditName] = useState('');
   const [renaming, setRenaming] = useState(false);
 
+  // Retry state
+  const [retryingId, setRetryingId] = useState<number | null>(null);
+
   useEffect(() => {
     loadBatches();
   }, [page, statusFilter]);
@@ -91,6 +94,30 @@ export default function PrescreenBatches() {
       console.error('Rename failed:', err);
     } finally {
       setRenaming(false);
+    }
+  };
+
+  const retryBatch = async (batchId: number) => {
+    if (!confirm('Retry this failed batch? Records will be resubmitted to Altair.')) return;
+    setRetryingId(batchId);
+    try {
+      const res = await fetch('/api/prescreen/batches/retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ batchId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Retry successful: ${data.data.qualifiedCount} qualified, ${data.data.failedCount} failed`);
+        loadBatches();
+      } else {
+        alert(`Retry failed: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      alert('Retry failed: Network error');
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -168,6 +195,7 @@ export default function PrescreenBatches() {
                   <th className={thClass}>Failed</th>
                   <th className={thClass}>Submitted By</th>
                   <th className={thClass}>Date</th>
+                  <th className={thClass}></th>
                 </tr>
               </thead>
               <tbody>
@@ -247,6 +275,21 @@ export default function PrescreenBatches() {
                     </td>
                     <td className={`px-5 py-3.5 text-sm tabular-nums ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       {new Date(batch.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      {batch.status === 'failed' && batch.errorMessage && (
+                        <button
+                          onClick={() => retryBatch(batch.id)}
+                          disabled={retryingId === batch.id}
+                          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
+                            isDark
+                              ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                              : 'bg-gray-900 text-white hover:bg-gray-800'
+                          }`}
+                        >
+                          {retryingId === batch.id ? 'Retrying...' : 'Retry'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

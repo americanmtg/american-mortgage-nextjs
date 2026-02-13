@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '25'), 100)
     const search = searchParams.get('search') || ''
     const tier = searchParams.get('tier') || ''
+    const matchStatus = searchParams.get('matchStatus') || ''
     const programId = searchParams.get('programId') || ''
     const batchId = searchParams.get('batchId') || ''
     const minScore = searchParams.get('minScore') || ''
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (tier) where.tier = tier
+    if (matchStatus) where.match_status = matchStatus
     if (programId) where.program_id = parseInt(programId)
     if (batchId) where.batch_id = parseInt(batchId)
 
@@ -43,15 +45,31 @@ export async function GET(request: NextRequest) {
       if (maxScore) where.middle_score.lte = parseInt(maxScore)
     }
 
+    // Custom sort for tier: logical order instead of alphabetical
+    // tier_1 (1) > tier_2 (2) > tier_3 (3) > below (4) > unqualified/filtered+matched (5) > no_match (6) > pending (7)
+    let orderBy: any
+    if (sortBy === 'tier') {
+      // Prisma doesn't support CASE WHEN in orderBy, so we sort by two fields:
+      // First by tier rank, then by match_status to separate no_match from matched within filtered
+      const tierRankMap: Record<string, string> = {
+        tier_1: '1', tier_2: '2', tier_3: '3', below: '4', filtered: '5', pending: '7',
+      }
+      // Use raw ordering via Prisma's queryRaw approach isn't clean here,
+      // so we'll fetch all and sort in JS (data set is small with pagination handled after)
+      orderBy = [{ tier: sortDir }, { match_status: sortDir === 'asc' ? 'desc' : 'asc' }]
+    } else {
+      orderBy = { [sortBy]: sortDir }
+    }
+
     const [leads, total] = await Promise.all([
       prisma.prescreen_leads.findMany({
         where,
-        skip,
-        take: limit,
-        orderBy: { [sortBy]: sortDir },
+        skip: sortBy === 'tier' ? 0 : skip,
+        take: sortBy === 'tier' ? undefined : limit,
+        orderBy,
         include: {
           results: true,
-          program: { select: { id: true, name: true } },
+          program: { select: { id: true, name: true, eq_enabled: true, tu_enabled: true, ex_enabled: true } },
           batch: { select: { id: true, name: true } },
           _count: { select: { hard_pulls: true } },
         },
@@ -59,10 +77,32 @@ export async function GET(request: NextRequest) {
       prisma.prescreen_leads.count({ where }),
     ])
 
+    // For tier sort: apply custom ordering in JS then paginate
+    if (sortBy === 'tier') {
+      const tierRank = (t: string | null, ms: string | null) => {
+        if (t === 'tier_1') return 1
+        if (t === 'tier_2') return 2
+        if (t === 'tier_3') return 3
+        if (t === 'below') return 4
+        if (t === 'filtered' && ms !== 'no_match') return 5 // unqualified
+        if (t === 'filtered' && ms === 'no_match') return 6 // no match
+        return 7 // pending
+      }
+      leads.sort((a, b) => {
+        const rankA = tierRank(a.tier, a.match_status)
+        const rankB = tierRank(b.tier, b.match_status)
+        return sortDir === 'asc' ? rankA - rankB : rankB - rankA
+      })
+      leads.splice(0, skip)
+      leads.splice(limit)
+    }
+
     const items = leads.map((lead) => {
       const bureauScores: Record<string, number | null> = {}
+      const bureauHits: Record<string, boolean> = {}
       for (const r of lead.results) {
         bureauScores[r.bureau] = r.credit_score
+        bureauHits[r.bureau] = !!r.is_hit
       }
 
       return {
@@ -75,8 +115,14 @@ export async function GET(request: NextRequest) {
         isQualified: lead.is_qualified,
         matchStatus: lead.match_status,
         bureauScores,
+        bureauHits,
         programName: lead.program?.name,
         programId: lead.program?.id,
+        programBureaus: {
+          eq: !!lead.program?.eq_enabled,
+          tu: !!lead.program?.tu_enabled,
+          ex: !!lead.program?.ex_enabled,
+        },
         batchId: lead.batch?.id,
         batchName: lead.batch?.name,
         firmOfferSent: lead.firm_offer_sent,

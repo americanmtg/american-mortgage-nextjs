@@ -1148,6 +1148,7 @@ model prescreen_leads {
   firm_offer_sent    Boolean?                    @default(false)
   firm_offer_date    DateTime?                   @db.Date
   firm_offer_method  String?                     @db.VarChar(50)
+  retry_queued       Boolean?                    @default(false)
   created_at         DateTime?                   @default(now()) @db.Timestamptz(6)
   updated_at         DateTime?                   @default(now()) @db.Timestamptz(6)
 

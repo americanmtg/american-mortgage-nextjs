@@ -58,20 +58,21 @@ interface LeadDetail {
   createdAt: string;
 }
 
-const getTierConfig = (tier: string, isDark: boolean) => {
+const getTierConfig = (tier: string, isDark: boolean, matchStatus?: string) => {
+  const filteredLabel = matchStatus === 'no_match' ? 'No Match' : 'Unqualified';
   const configs: Record<string, { badge: string; label: string; dot: string }> = isDark ? {
     tier_1: { badge: 'bg-emerald-900/30 text-emerald-400', label: 'Tier 1', dot: 'bg-emerald-500' },
     tier_2: { badge: 'bg-blue-900/30 text-blue-400', label: 'Tier 2', dot: 'bg-blue-500' },
     tier_3: { badge: 'bg-amber-900/30 text-amber-400', label: 'Tier 3', dot: 'bg-amber-500' },
     below: { badge: 'bg-red-900/30 text-red-400', label: 'Below', dot: 'bg-red-500' },
-    filtered: { badge: 'bg-gray-700/60 text-gray-400', label: 'Filtered', dot: 'bg-gray-400' },
+    filtered: { badge: 'bg-gray-700/60 text-gray-400', label: filteredLabel, dot: 'bg-gray-400' },
     pending: { badge: 'bg-gray-700/60 text-gray-400', label: 'Pending', dot: 'bg-gray-400' },
   } : {
     tier_1: { badge: 'bg-emerald-50 text-emerald-700', label: 'Tier 1', dot: 'bg-emerald-500' },
     tier_2: { badge: 'bg-blue-50 text-blue-700', label: 'Tier 2', dot: 'bg-blue-500' },
     tier_3: { badge: 'bg-amber-50 text-amber-700', label: 'Tier 3', dot: 'bg-amber-500' },
     below: { badge: 'bg-red-50 text-red-600', label: 'Below', dot: 'bg-red-500' },
-    filtered: { badge: 'bg-gray-100 text-gray-500', label: 'Filtered', dot: 'bg-gray-400' },
+    filtered: { badge: 'bg-gray-100 text-gray-500', label: filteredLabel, dot: 'bg-gray-400' },
     pending: { badge: 'bg-gray-100 text-gray-500', label: 'Pending', dot: 'bg-gray-400' },
   };
   return configs[tier] || configs.pending;
@@ -349,7 +350,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     );
   }
 
-  const tc = getTierConfig(lead.tier, isDark);
+  const tc = getTierConfig(lead.tier, isDark, lead.matchStatus);
   const inputClass = `w-full px-3 py-2 rounded-lg border text-sm outline-none transition-all ${
     isDark ? 'bg-gray-800/80 border-gray-700/60 text-white focus:border-gray-500' : 'bg-white border-gray-200 text-gray-900 focus:border-gray-400 focus:ring-1 focus:ring-gray-200'
   }`;
@@ -440,7 +441,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
             </svg>
             <div>
               <p className={`text-sm font-medium ${isDark ? 'text-red-300' : 'text-[#d93c37]'}`}>
-                {lead.matchStatus === 'api_error' ? 'API Submission Error' : 'Record Failed / Filtered'}
+                {lead.matchStatus === 'api_error' ? 'API Submission Error' : lead.matchStatus === 'no_match' ? 'No Match Found in Bureau Data' : 'Matched But No Bureau Scores Returned'}
               </p>
               <p className={`text-sm mt-0.5 ${isDark ? 'text-red-400' : 'text-red-600'}`}>
                 {lead.errorMessage}
@@ -533,9 +534,9 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
             <>
               {/* Score Rings */}
               <div className="flex items-center justify-center gap-8 mb-6 pt-2">
-                {lead.middleScore != null && hitBureaus.length !== 2 && (
+                {lead.middleScore != null && hitBureaus.length === 3 && (
                   <div className="text-center">
-                    <ScoreRing score={lead.middleScore} label={hitBureaus.length === 3 ? 'Middle Score' : 'Credit Score'} />
+                    <ScoreRing score={lead.middleScore} label="Middle Score" />
                   </div>
                 )}
                 {hitBureaus.map((br) => {
@@ -548,7 +549,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
               {/* Bureau explanation */}
               <div className={`text-center text-[11px] py-2 rounded-md ${isDark ? 'bg-gray-900/50 text-gray-500' : 'bg-gray-50/80 text-gray-400'}`}>
                 {hitBureaus.length === 3 && 'Middle score computed from 3 bureau scores'}
-                {hitBureaus.length === 2 && 'Two bureau scores available - higher score used for tiering'}
+                {hitBureaus.length === 2 && 'Lower of two scores used for tiering (conservative)'}
                 {hitBureaus.length === 1 && 'Single bureau hit - score used directly for tiering'}
               </div>
             </>

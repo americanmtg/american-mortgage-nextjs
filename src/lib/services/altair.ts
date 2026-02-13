@@ -382,7 +382,7 @@ export async function submitRecords(
 /**
  * Compute the "middle score" from available bureau scores.
  * - 3 scores: sort ascending, return middle (index 1)
- * - 2 scores: null (display both individually, no middle calculated)
+ * - 2 scores: return the lower score (conservative, lender standard)
  * - 1 score: that score
  * - 0 scores: null
  */
@@ -391,7 +391,7 @@ export function computeMiddleScore(scores: (number | null | undefined)[]): numbe
   if (valid.length === 0) return null;
   if (valid.length === 1) return valid[0];
   valid.sort((a, b) => a - b);
-  if (valid.length === 2) return valid[1]; // higher of 2
+  if (valid.length === 2) return valid[0]; // lower of 2 (conservative)
   return valid[1]; // middle of 3
 }
 
