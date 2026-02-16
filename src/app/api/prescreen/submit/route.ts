@@ -184,9 +184,9 @@ export async function POST(request: NextRequest) {
         const exScore = q.outputs?.ex?.credit_score ?? null
         const middleScore = computeMiddleScore([eqScore, tuScore, exScore])
 
-        // For tiering: use middle score if available, otherwise use lowest available score (conservative)
+        // For tiering: use middle score if all 3 exist, otherwise use highest available score
         const validScores = [eqScore, tuScore, exScore].filter((s): s is number => s != null)
-        const tierScore = middleScore ?? (validScores.length > 0 ? Math.min(...validScores) : null)
+        const tierScore = middleScore ?? (validScores.length > 0 ? Math.max(...validScores) : null)
         const tier = computeTier(tierScore)
 
         // Encrypt PII

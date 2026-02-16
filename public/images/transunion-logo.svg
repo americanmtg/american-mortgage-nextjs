@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 120">
+  <!-- TransUnion globe icon -->
+  <g transform="translate(10, 10)">
+    <circle cx="50" cy="50" r="48" fill="#00a4e4"/>
+    <ellipse cx="50" cy="50" rx="22" ry="48" fill="none" stroke="#fff" stroke-width="3.5"/>
+    <line x1="2" y1="50" x2="98" y2="50" stroke="#fff" stroke-width="3.5"/>
+    <ellipse cx="50" cy="28" rx="40" ry="12" fill="none" stroke="#fff" stroke-width="2.5"/>
+    <ellipse cx="50" cy="72" rx="40" ry="12" fill="none" stroke="#fff" stroke-width="2.5"/>
+  </g>
+  <!-- TransUnion wordmark -->
+  <text x="125" y="78" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="62" font-weight="700" fill="#00529b" letter-spacing="-1">Trans</text>
+  <text x="338" y="78" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="62" font-weight="400" fill="#00529b" letter-spacing="-1">Union</text>
+</svg>

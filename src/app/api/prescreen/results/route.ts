@@ -33,10 +33,29 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    if (tier) where.tier = tier
-    if (matchStatus) where.match_status = matchStatus
+    if (tier === 'unqualified') {
+      // Unqualified = below threshold (tier=below) OR filtered+matched (no scores returned)
+      where.OR = [
+        { tier: 'below' },
+        { tier: 'filtered', match_status: 'matched' },
+      ]
+    } else {
+      if (tier) where.tier = tier
+      if (matchStatus) where.match_status = matchStatus
+    }
     if (programId) where.program_id = parseInt(programId)
-    if (batchId) where.batch_id = parseInt(batchId)
+    if (batchId) {
+      // Check if this batch has lead_ids (fill batches store leads separately)
+      const batch = await prisma.prescreen_batches.findUnique({
+        where: { id: parseInt(batchId) },
+        select: { lead_ids: true },
+      })
+      if (batch?.lead_ids && Array.isArray(batch.lead_ids) && (batch.lead_ids as number[]).length > 0) {
+        where.id = { in: batch.lead_ids as number[] }
+      } else {
+        where.batch_id = parseInt(batchId)
+      }
+    }
 
     // Score range filters
     if (minScore || maxScore) {
@@ -47,16 +66,15 @@ export async function GET(request: NextRequest) {
 
     // Custom sort for tier: logical order instead of alphabetical
     // tier_1 (1) > tier_2 (2) > tier_3 (3) > below (4) > unqualified/filtered+matched (5) > no_match (6) > pending (7)
+    // Sorts that need JS-based ordering (computed fields can't be sorted in Prisma)
+    const jsSort = sortBy === 'tier' || sortBy === 'created_at' || sortBy === 'middle_score'
     let orderBy: any
     if (sortBy === 'tier') {
-      // Prisma doesn't support CASE WHEN in orderBy, so we sort by two fields:
-      // First by tier rank, then by match_status to separate no_match from matched within filtered
-      const tierRankMap: Record<string, string> = {
-        tier_1: '1', tier_2: '2', tier_3: '3', below: '4', filtered: '5', pending: '7',
-      }
-      // Use raw ordering via Prisma's queryRaw approach isn't clean here,
-      // so we'll fetch all and sort in JS (data set is small with pagination handled after)
       orderBy = [{ tier: sortDir }, { match_status: sortDir === 'asc' ? 'desc' : 'asc' }]
+    } else if (sortBy === 'created_at') {
+      // Date column displays lastActivity (latest result date or creation date)
+      // Fetch all and sort in JS so the sort matches the displayed value
+      orderBy = { created_at: sortDir }
     } else {
       orderBy = { [sortBy]: sortDir }
     }
@@ -64,8 +82,8 @@ export async function GET(request: NextRequest) {
     const [leads, total] = await Promise.all([
       prisma.prescreen_leads.findMany({
         where,
-        skip: sortBy === 'tier' ? 0 : skip,
-        take: sortBy === 'tier' ? undefined : limit,
+        skip: jsSort ? 0 : skip,
+        take: jsSort ? undefined : limit,
         orderBy,
         include: {
           results: true,
@@ -77,7 +95,7 @@ export async function GET(request: NextRequest) {
       prisma.prescreen_leads.count({ where }),
     ])
 
-    // For tier sort: apply custom ordering in JS then paginate
+    // For JS-sorted fields: apply custom ordering then paginate
     if (sortBy === 'tier') {
       const tierRank = (t: string | null, ms: string | null) => {
         if (t === 'tier_1') return 1
@@ -97,6 +115,37 @@ export async function GET(request: NextRequest) {
       leads.splice(limit)
     }
 
+    // For middle_score sort: nulls always last
+    if (sortBy === 'middle_score') {
+      leads.sort((a, b) => {
+        const aNull = a.middle_score == null
+        const bNull = b.middle_score == null
+        if (aNull && bNull) return 0
+        if (aNull) return 1
+        if (bNull) return -1
+        return sortDir === 'asc' ? a.middle_score! - b.middle_score! : b.middle_score! - a.middle_score!
+      })
+      leads.splice(0, skip)
+      leads.splice(limit)
+    }
+
+    // For date sort: sort by lastActivity (latest result date or creation date)
+    if (sortBy === 'created_at') {
+      const getLastActivity = (lead: typeof leads[0]) => {
+        const resultDates = lead.results.map(r => r.created_at ? new Date(r.created_at).getTime() : 0)
+        const latestResult = resultDates.length > 0 ? Math.max(...resultDates) : 0
+        const createdAt = lead.created_at ? new Date(lead.created_at).getTime() : 0
+        return Math.max(latestResult, createdAt)
+      }
+      leads.sort((a, b) => {
+        const actA = getLastActivity(a)
+        const actB = getLastActivity(b)
+        return sortDir === 'asc' ? actA - actB : actB - actA
+      })
+      leads.splice(0, skip)
+      leads.splice(limit)
+    }
+
     const items = leads.map((lead) => {
       const bureauScores: Record<string, number | null> = {}
       const bureauHits: Record<string, boolean> = {}
@@ -104,6 +153,17 @@ export async function GET(request: NextRequest) {
         bureauScores[r.bureau] = r.credit_score
         bureauHits[r.bureau] = !!r.is_hit
       }
+
+      // Most recent activity: latest bureau result date or lead creation
+      const latestResultDate = lead.results.length > 0
+        ? lead.results.reduce((latest, r) => {
+            const d = r.created_at ? new Date(r.created_at).getTime() : 0
+            return d > latest ? d : latest
+          }, 0)
+        : 0
+      const lastActivity = latestResultDate > new Date(lead.created_at!).getTime()
+        ? new Date(latestResultDate)
+        : lead.created_at
 
       return {
         id: lead.id,
@@ -130,6 +190,7 @@ export async function GET(request: NextRequest) {
         firmOfferMethod: lead.firm_offer_method,
         hardPullCount: lead._count.hard_pulls,
         createdAt: lead.created_at,
+        lastActivity,
       }
     })
 

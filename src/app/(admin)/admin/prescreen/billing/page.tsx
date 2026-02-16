@@ -63,7 +63,7 @@ const bureauColor = (bureau: string) => {
   const b = bureau?.toLowerCase();
   if (b === 'eq' || b === 'equifax') return 'text-red-500';
   if (b === 'tu' || b === 'transunion') return 'text-blue-500';
-  if (b === 'ex' || b === 'experian') return 'text-purple-500';
+  if (b === 'ex' || b === 'experian') return 'text-green-500';
   return 'text-gray-500';
 };
 
@@ -238,7 +238,7 @@ export default function PrescreenBillingPage() {
                       <div className={`w-full h-2 rounded-full ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
                         <div
                           className={`h-2 rounded-full transition-all ${
-                            bureau === 'eq' ? 'bg-red-400' : bureau === 'tu' ? 'bg-blue-400' : 'bg-purple-400'
+                            bureau === 'eq' ? 'bg-red-400' : bureau === 'tu' ? 'bg-blue-400' : 'bg-green-400'
                           }`}
                           style={{ width: `${pct}%` }}
                         />

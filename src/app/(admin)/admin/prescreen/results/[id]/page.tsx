@@ -82,11 +82,11 @@ const getBureauConfig = (bureau: string, isDark: boolean) => {
   const configs: Record<string, { name: string; color: string; bg: string; border: string }> = isDark ? {
     eq: { name: 'Equifax', color: 'text-red-400', bg: 'bg-red-900/20', border: 'border-red-800/30' },
     tu: { name: 'TransUnion', color: 'text-blue-400', bg: 'bg-blue-900/20', border: 'border-blue-800/30' },
-    ex: { name: 'Experian', color: 'text-purple-400', bg: 'bg-purple-900/20', border: 'border-purple-800/30' },
+    ex: { name: 'Experian', color: 'text-green-400', bg: 'bg-green-900/20', border: 'border-green-800/30' },
   } : {
     eq: { name: 'Equifax', color: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200' },
     tu: { name: 'TransUnion', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200' },
-    ex: { name: 'Experian', color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200' },
+    ex: { name: 'Experian', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' },
   };
   const fallback = isDark
     ? { name: bureau.toUpperCase(), color: 'text-gray-400', bg: 'bg-gray-800', border: 'border-gray-700' }

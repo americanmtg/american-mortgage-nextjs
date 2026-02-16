@@ -21,7 +21,8 @@ export async function GET(
       include: {
         results: true,
         hard_pulls: { orderBy: { pull_date: 'desc' } },
-        program: { select: { id: true, name: true } },
+        lead_notes: { orderBy: { created_at: 'desc' } },
+        program: { select: { id: true, name: true, altair_config: true } },
         batch: { select: { id: true, name: true, submitted_at: true } },
         audit_log: {
           orderBy: { created_at: 'desc' },
@@ -72,6 +73,13 @@ export async function GET(
       segmentName: lead.segment_name,
       errorMessage: lead.error_message,
       notes: lead.notes,
+      leadNotes: lead.lead_notes.map((n) => ({
+        id: n.id,
+        content: n.content,
+        createdByEmail: n.created_by_email,
+        createdAt: n.created_at,
+        updatedAt: n.updated_at,
+      })),
       firmOfferSent: lead.firm_offer_sent,
       firmOfferDate: lead.firm_offer_date,
       firmOfferMethod: lead.firm_offer_method,
@@ -89,7 +97,15 @@ export async function GET(
         performedByEmail: hp.performed_by_email,
         createdAt: hp.created_at,
       })),
-      program: lead.program,
+      program: lead.program ? {
+        id: lead.program.id,
+        name: lead.program.name,
+        scoreVersions: {
+          eq: (lead.program.altair_config as any)?.eqScoreVersion || null,
+          tu: (lead.program.altair_config as any)?.tuScoreVersion || null,
+          ex: (lead.program.altair_config as any)?.exScoreVersion || null,
+        },
+      } : null,
       batch: lead.batch ? {
         id: lead.batch.id,
         name: lead.batch.name,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTheme } from '../../../AdminContext';
 
 interface Batch {
@@ -28,6 +29,7 @@ const statusBadge = (status: string, isDark: boolean) => {
 
 export default function PrescreenBatches() {
   const { isDark } = useTheme();
+  const router = useRouter();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -202,7 +204,8 @@ export default function PrescreenBatches() {
                 {batches.map((batch) => (
                   <tr
                     key={batch.id}
-                    className={`transition-colors ${
+                    onClick={() => { if (editingId !== batch.id) router.push(`/admin/prescreen/results?batchId=${batch.id}`); }}
+                    className={`transition-colors cursor-pointer ${
                       isDark
                         ? 'hover:bg-gray-700/20 border-b border-gray-700/30'
                         : 'hover:bg-gray-50/80 border-b border-gray-100/80'
@@ -213,7 +216,7 @@ export default function PrescreenBatches() {
                     </td>
                     <td className={`px-5 py-3.5 text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                       {editingId === batch.id ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="text"
                             value={editName}
@@ -235,12 +238,7 @@ export default function PrescreenBatches() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 group">
-                          <Link
-                            href={`/admin/prescreen/results?batchId=${batch.id}`}
-                            className={isDark ? 'text-gray-300 hover:text-gray-100' : 'text-gray-700 hover:text-gray-900'}
-                          >
-                            {batch.name || `Batch #${batch.id}`}
-                          </Link>
+                          <span>{batch.name || `Batch #${batch.id}`}</span>
                           <button
                             onClick={(e) => { e.stopPropagation(); startRename(batch); }}
                             className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600"
@@ -279,7 +277,7 @@ export default function PrescreenBatches() {
                     <td className="px-5 py-3.5">
                       {batch.status === 'failed' && batch.errorMessage && (
                         <button
-                          onClick={() => retryBatch(batch.id)}
+                          onClick={(e) => { e.stopPropagation(); retryBatch(batch.id); }}
                           disabled={retryingId === batch.id}
                           className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-50 ${
                             isDark

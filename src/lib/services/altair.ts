@@ -381,17 +381,13 @@ export async function submitRecords(
 
 /**
  * Compute the "middle score" from available bureau scores.
- * - 3 scores: sort ascending, return middle (index 1)
- * - 2 scores: return the lower score (conservative, lender standard)
- * - 1 score: that score
- * - 0 scores: null
+ * Requires all 3 bureau scores. Returns the true middle (median).
+ * Returns null if any bureau score is missing.
  */
 export function computeMiddleScore(scores: (number | null | undefined)[]): number | null {
   const valid = scores.filter((s): s is number => s != null && !isNaN(s));
-  if (valid.length === 0) return null;
-  if (valid.length === 1) return valid[0];
+  if (valid.length < 3) return null;
   valid.sort((a, b) => a - b);
-  if (valid.length === 2) return valid[0]; // lower of 2 (conservative)
   return valid[1]; // middle of 3
 }
 

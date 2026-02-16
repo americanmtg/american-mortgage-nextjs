@@ -50,7 +50,7 @@ const tierLabel = (tier: string, matchStatus?: string) => {
     case 'tier_1': return 'Tier 1';
     case 'tier_2': return 'Tier 2';
     case 'tier_3': return 'Tier 3';
-    case 'below': return 'Below';
+    case 'below':
     case 'filtered': return matchStatus === 'no_match' ? 'No Match' : 'Unqualified';
     default: return 'Pending';
   }
@@ -61,10 +61,10 @@ const tierBadge = (tier: string, isDark: boolean, matchStatus?: string) => {
     case 'tier_1': return isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700';
     case 'tier_2': return isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700';
     case 'tier_3': return isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-700';
-    case 'below': return isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600';
+    case 'below':
     case 'filtered': return matchStatus === 'no_match'
       ? (isDark ? 'bg-red-900/20 text-red-400/70' : 'bg-red-50 text-red-400')
-      : (isDark ? 'bg-gray-700/60 text-gray-400' : 'bg-gray-100 text-gray-500');
+      : (isDark ? 'bg-gray-700/40 text-gray-400' : 'bg-gray-100 text-gray-500');
     default: return isDark ? 'bg-gray-700/60 text-gray-300' : 'bg-gray-100 text-gray-600';
   }
 };
@@ -91,6 +91,7 @@ export default function PrescreenDashboard() {
 
   // Pagination
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -98,6 +99,9 @@ export default function PrescreenDashboard() {
   const [queuedIds, setQueuedIds] = useState<Set<number>>(new Set());
   const [retryLeads, setRetryLeads] = useState<any[]>([]);
   const [loadingRetry, setLoadingRetry] = useState(false);
+
+  // Table collapse
+  const [tableCollapsed, setTableCollapsed] = useState(false);
 
   // Expanded row detail
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -109,6 +113,10 @@ export default function PrescreenDashboard() {
   const [inlineNotes, setInlineNotes] = useState('');
   const [inlineNotesSaving, setInlineNotesSaving] = useState(false);
   const [inlineNotesDirty, setInlineNotesDirty] = useState(false);
+  const [revealedSsn, setRevealedSsn] = useState<string | null>(null);
+  const [ssnLoading, setSsnLoading] = useState(false);
+  const [revealedDob, setRevealedDob] = useState<string | null>(null);
+  const [dobLoading, setDobLoading] = useState(false);
   const [inlineFoEditing, setInlineFoEditing] = useState(false);
   const [inlineFoSent, setInlineFoSent] = useState(false);
   const [inlineFoDate, setInlineFoDate] = useState('');
@@ -123,22 +131,203 @@ export default function PrescreenDashboard() {
 
   // API Status (manual check only)
   const [apiStatus, setApiStatus] = useState<{ status: string; message: string; latencyMs?: number } | null>(null);
-  const [apiLastChecked, setApiLastChecked] = useState<Date | null>(null);
+  const [apiLastChecked, setApiLastChecked] = useState<Date | null>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('prescreen_last_checked');
+      return saved ? new Date(saved) : null;
+    }
+    return null;
+  });
   const [apiChecking, setApiChecking] = useState(false);
 
   // Fill missing bureaus
   const [fillData, setFillData] = useState<{ summary: { totalLeadsWithMissing: number; missingEq: number; missingTu: number; missingEx: number }; leads: any[] } | null>(null);
   const [fillExpanded, setFillExpanded] = useState(false);
-  const [fillSelected, setFillSelected] = useState<Set<number>>(new Set());
+  const [fillSelected, setFillSelected] = useState<Map<number, Set<string>>>(new Map());
   const [filling, setFilling] = useState(false);
   const [fillResult, setFillResult] = useState<{ results: Record<string, { submitted: number; qualified: number; failed: number; error?: string }>; totalUpdated: number } | null>(null);
+  const [fillSearch, setFillSearch] = useState('');
+
+  // Incoming applications (from Arive/Zapier)
+  interface IncomingApp {
+    id: number;
+    source: string;
+    sourceLoanId: string | null;
+    borrowerType: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+    phone: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+    dob: string | null;
+    hasSsn: boolean;
+    ssnLastFour: string | null;
+    hasDob: boolean;
+    loanAmount: number | null;
+    loanPurpose: string | null;
+    loanType: string | null;
+    status: string;
+    prescreenLeadId: number | null;
+    createdAt: string;
+  }
+  const [incomingApps, setIncomingApps] = useState<IncomingApp[]>([]);
+  const [dismissedApps, setDismissedApps] = useState<IncomingApp[]>([]);
+  const [incomingExpanded, setIncomingExpanded] = useState(false);
+  const [incomingTab, setIncomingTab] = useState<'pending' | 'dismissed'>('pending');
+  const [incomingLoading, setIncomingLoading] = useState(false);
+  const [incomingSsnInputs, setIncomingSsnInputs] = useState<Record<number, string>>({});
+  const [incomingDobInputs, setIncomingDobInputs] = useState<Record<number, string>>({});
+  const handleIncomingSsn = (appId: number, v: string) => {
+    const d = v.replace(/\D/g, '').slice(0, 9);
+    let formatted = d;
+    if (d.length > 5) formatted = `${d.slice(0,3)}-${d.slice(3,5)}-${d.slice(5)}`;
+    else if (d.length > 3) formatted = `${d.slice(0,3)}-${d.slice(3)}`;
+    setIncomingSsnInputs(prev => ({ ...prev, [appId]: formatted }));
+  };
+
+  const handleIncomingDob = (appId: number, v: string) => {
+    const d = v.replace(/\D/g, '').slice(0, 8);
+    let formatted = d;
+    if (d.length > 4) formatted = `${d.slice(0,2)}/${d.slice(2,4)}/${d.slice(4)}`;
+    else if (d.length > 2) formatted = `${d.slice(0,2)}/${d.slice(2)}`;
+    setIncomingDobInputs(prev => ({ ...prev, [appId]: formatted }));
+  };
+
+  const sortByLoanGroup = (items: IncomingApp[]) => {
+    items.sort((a, b) => {
+      const aLoan = a.sourceLoanId || '';
+      const bLoan = b.sourceLoanId || '';
+      if (aLoan && bLoan && aLoan === bLoan) {
+        return a.borrowerType === 'primary' ? -1 : 1;
+      }
+      return 0;
+    });
+    return items;
+  };
+
+  const loadIncomingApps = useCallback(async () => {
+    try {
+      const [pendingRes, dismissedRes] = await Promise.all([
+        fetch('/api/prescreen/applications?status=pending', { credentials: 'include' }),
+        fetch('/api/prescreen/applications?status=dismissed', { credentials: 'include' }),
+      ]);
+      if (pendingRes.ok) {
+        const data = await pendingRes.json();
+        setIncomingApps(sortByLoanGroup(data.data?.items || []));
+      }
+      if (dismissedRes.ok) {
+        const data = await dismissedRes.json();
+        setDismissedApps(sortByLoanGroup(data.data?.items || []));
+      }
+    } catch (e) {
+      console.error('Failed to load incoming apps:', e);
+    }
+  }, []);
+
+  const saveSsnDob = async (appId: number) => {
+    const ssnRaw = (incomingSsnInputs[appId] || '').replace(/\D/g, '');
+    const dobRaw = (incomingDobInputs[appId] || '').replace(/\D/g, '');
+    const updates: any = {};
+    if (ssnRaw.length === 9) updates.ssn = ssnRaw;
+    if (dobRaw.length === 8) updates.dob = `${dobRaw.slice(4,8)}-${dobRaw.slice(0,2)}-${dobRaw.slice(2,4)}`;
+    if (Object.keys(updates).length === 0) return;
+    try {
+      const res = await fetch(`/api/prescreen/applications/${appId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) loadIncomingApps();
+    } catch (e) {
+      console.error('Failed to save SSN/DOB:', e);
+    }
+  };
+
+  const addAppToBatch = async (appId: number) => {
+    // Auto-save SSN/DOB first if entered
+    await saveSsnDob(appId);
+    const app = incomingApps.find(a => a.id === appId);
+    if (!app) return;
+
+    const ssnRaw = (incomingSsnInputs[appId] || '').replace(/\D/g, '');
+    const dobRaw = (incomingDobInputs[appId] || '').replace(/\D/g, '');
+    const dobISO = dobRaw.length === 8 ? `${dobRaw.slice(4,8)}-${dobRaw.slice(0,2)}-${dobRaw.slice(2,4)}` : '';
+    // If DOB came from Arive (stored on the app), convert it
+    let finalDob = dobISO;
+    if (!finalDob && app.dob) {
+      // Arive DOB may be MM/DD/YYYY or YYYY-MM-DD
+      const d = app.dob.replace(/\D/g, '');
+      if (d.length === 8 && app.dob.includes('/')) {
+        finalDob = `${d.slice(4,8)}-${d.slice(0,2)}-${d.slice(2,4)}`;
+      } else if (app.dob.includes('-')) {
+        finalDob = app.dob;
+      }
+    }
+
+    setQaBatch(prev => [...prev, {
+      firstName: app.firstName,
+      lastName: app.lastName,
+      address: app.address || '',
+      address2: '',
+      city: app.city || '',
+      state: app.state || 'AR',
+      zip: app.zip || '',
+      ssn: ssnRaw,
+      dob: finalDob,
+    }]);
+
+    // Mark as added (dismiss from incoming queue)
+    try {
+      await fetch(`/api/prescreen/applications/${appId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'dismissed' }),
+      });
+      loadIncomingApps();
+    } catch (e) {
+      console.error('Error dismissing app after add:', e);
+    }
+  };
+
+  const dismissApp = async (appId: number) => {
+    try {
+      await fetch(`/api/prescreen/applications/${appId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      loadIncomingApps();
+    } catch (e) {
+      console.error('Dismiss error:', e);
+    }
+  };
+
+  const restoreApp = async (appId: number) => {
+    try {
+      await fetch(`/api/prescreen/applications/${appId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'pending' }),
+      });
+      setIncomingTab('pending');
+      loadIncomingApps();
+    } catch (e) {
+      console.error('Restore error:', e);
+    }
+  };
 
   // Quick-add form
-  interface QaRecord { firstName: string; lastName: string; address: string; city: string; state: string; zip: string; ssn: string; dob: string; }
+  interface QaRecord { firstName: string; lastName: string; address: string; address2: string; city: string; state: string; zip: string; ssn: string; dob: string; }
   const [qaProgram, setQaProgram] = useState('');
   const [qaFirst, setQaFirst] = useState('');
   const [qaLast, setQaLast] = useState('');
   const [qaAddress, setQaAddress] = useState('');
+  const [qaAddress2, setQaAddress2] = useState('');
   const [qaCity, setQaCity] = useState('');
   const [qaState, setQaState] = useState('AR');
   const [qaTab, setQaTab] = useState<'single' | 'csv'>('single');
@@ -172,8 +361,8 @@ export default function PrescreenDashboard() {
     const ssnDigits = qaSsn.replace(/\D/g, '');
     const dobDigits = qaDob.replace(/\D/g, '');
     const dobISO = dobDigits.length === 8 ? `${dobDigits.slice(4,8)}-${dobDigits.slice(0,2)}-${dobDigits.slice(2,4)}` : '';
-    setQaBatch(prev => [...prev, { firstName: qaFirst.trim(), lastName: qaLast.trim(), address: qaAddress.trim(), city: qaCity.trim(), state: qaState, zip: qaZip.trim(), ssn: ssnDigits, dob: dobISO }]);
-    setQaFirst(''); setQaLast(''); setQaAddress(''); setQaCity(''); setQaState(''); setQaZip(''); setQaSsn(''); setQaDob('');
+    setQaBatch(prev => [...prev, { firstName: qaFirst.trim(), lastName: qaLast.trim(), address: qaAddress.trim(), address2: qaAddress2.trim(), city: qaCity.trim(), state: qaState, zip: qaZip.trim(), ssn: ssnDigits, dob: dobISO }]);
+    setQaFirst(''); setQaLast(''); setQaAddress(''); setQaAddress2(''); setQaCity(''); setQaState('AR'); setQaZip(''); setQaSsn(''); setQaDob('');
   };
 
   const parseQaCsv = () => {
@@ -189,7 +378,7 @@ export default function PrescreenDashboard() {
       const vals = lines[i].split(',').map(v => v.trim());
       const row: any = {};
       headers.forEach((h, idx) => { row[h] = vals[idx] || ''; });
-      newRecords.push({ firstName: row.first_name, lastName: row.last_name, address: row.address, city: row.city, state: row.state, zip: row.zip, ssn: (row.ssn || '').replace(/\D/g, ''), dob: row.dob || '' });
+      newRecords.push({ firstName: row.first_name, lastName: row.last_name, address: row.address, address2: row.address_2 || row.address2 || row.apt || row.unit || '', city: row.city, state: row.state, zip: row.zip, ssn: (row.ssn || '').replace(/\D/g, ''), dob: row.dob || '' });
     }
     setQaBatch(prev => [...prev, ...newRecords]);
     setQaCsv('');
@@ -234,7 +423,8 @@ export default function PrescreenDashboard() {
       if (programsData) {
         const items = programsData.data?.items || [];
         setPrograms(items);
-        if (items.length > 0) setQaProgram(String(items[0].id));
+        const standard = items.find((p: Program) => p.name.toLowerCase().includes('standard'));
+        setQaProgram(String((standard || items[0])?.id || ''));
       }
     }).catch(console.error);
     fetch('/api/prescreen/retry-queue', { credentials: 'include' })
@@ -249,7 +439,8 @@ export default function PrescreenDashboard() {
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data?.data) setFillData(data.data); })
       .catch(console.error);
-  }, []);
+    loadIncomingApps();
+  }, [loadIncomingApps]);
 
   const toggleRetryQueue = async (leadId: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -333,6 +524,7 @@ export default function PrescreenDashboard() {
           firstName: lead.firstName,
           lastName: lead.lastName,
           address: lead.address || '',
+          address2: lead.address2 || '',
           city: lead.city || '',
           state: lead.state || '',
           zip: lead.zip || '',
@@ -365,6 +557,8 @@ export default function PrescreenDashboard() {
       setExpandedId(null);
       setExpandedData(null);
       setExpandedBureau(null);
+      setRevealedSsn(null);
+      setRevealedDob(null);
       return;
     }
     setExpandedId(id);
@@ -372,12 +566,14 @@ export default function PrescreenDashboard() {
     setExpandedBureau(null);
     setExpandedLoading(true);
     setInlineFoEditing(false);
+    setRevealedSsn(null);
+    setRevealedDob(null);
     try {
       const res = await fetch(`/api/prescreen/results/${id}`, { credentials: 'include' });
       const data = await res.json();
       if (res.ok && data.data) {
         setExpandedData(data.data);
-        setInlineNotes(data.data.notes || '');
+        setInlineNotes('');
         setInlineNotesDirty(false);
         setInlineFoSent(data.data.firmOfferSent || false);
         setInlineFoDate(data.data.firmOfferDate ? new Date(data.data.firmOfferDate).toISOString().split('T')[0] : '');
@@ -484,11 +680,27 @@ export default function PrescreenDashboard() {
     }
   };
 
-  const handleFillMissing = async (leadIds?: number[]) => {
+  // Compute selected bureau counts from fillSelected map
+  const fillBureauCounts = (() => {
+    const counts: Record<string, number> = { eq: 0, tu: 0, ex: 0 };
+    fillSelected.forEach((bureaus) => {
+      bureaus.forEach((b) => { counts[b] = (counts[b] || 0) + 1; });
+    });
+    return counts;
+  })();
+  const fillTotalSelections = fillBureauCounts.eq + fillBureauCounts.tu + fillBureauCounts.ex;
+
+  const handleFillMissing = async (selections?: Map<number, Set<string>>) => {
     setFilling(true);
     setFillResult(null);
     try {
-      const body = leadIds ? JSON.stringify({ leadIds }) : undefined;
+      let body: string | undefined;
+      if (selections && selections.size > 0) {
+        // Convert Map<number, Set<string>> to { selections: { [leadId]: string[] } }
+        const obj: Record<number, string[]> = {};
+        selections.forEach((bureaus, leadId) => { obj[leadId] = Array.from(bureaus); });
+        body = JSON.stringify({ selections: obj });
+      }
       const res = await fetch('/api/prescreen/fill-missing', {
         method: 'POST', credentials: 'include',
         headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -497,7 +709,7 @@ export default function PrescreenDashboard() {
       const data = await res.json();
       if (res.ok && data.data) {
         setFillResult(data.data);
-        setFillSelected(new Set());
+        setFillSelected(new Map());
         // Refresh stats + table + fill preview
         fetch('/api/prescreen/stats', { credentials: 'include' }).then(r => r.ok ? r.json() : null).then(d => { if (d) setStats(d.data); });
         fetch('/api/prescreen/fill-missing', { credentials: 'include' }).then(r => r.ok ? r.json() : null).then(d => { if (d?.data) setFillData(d.data); });
@@ -518,7 +730,7 @@ export default function PrescreenDashboard() {
     try {
       const params = new URLSearchParams();
       params.set('page', page.toString());
-      params.set('limit', '20');
+      params.set('limit', limit.toString());
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (tierFilter) params.set('tier', tierFilter);
       if (matchStatusFilter) params.set('matchStatus', matchStatusFilter);
@@ -539,7 +751,7 @@ export default function PrescreenDashboard() {
       setTableLoading(false);
       setLoading(false);
     }
-  }, [page, tierFilter, matchStatusFilter, programFilter, sortBy, sortDir, debouncedSearch]);
+  }, [page, limit, tierFilter, matchStatusFilter, programFilter, sortBy, sortDir, debouncedSearch]);
 
   useEffect(() => { loadResults(); }, [loadResults]);
 
@@ -561,14 +773,20 @@ export default function PrescreenDashboard() {
       if (res.ok) {
         const data = await res.json();
         setApiStatus(data.data);
-        setApiLastChecked(new Date());
+        const now = new Date();
+        setApiLastChecked(now);
+        localStorage.setItem('prescreen_last_checked', now.toISOString());
       } else {
         setApiStatus({ status: 'error', message: 'Failed to reach test endpoint' });
-        setApiLastChecked(new Date());
+        const now = new Date();
+        setApiLastChecked(now);
+        localStorage.setItem('prescreen_last_checked', now.toISOString());
       }
     } catch (err: any) {
       setApiStatus({ status: 'error', message: err.message });
-      setApiLastChecked(new Date());
+      const now = new Date();
+      setApiLastChecked(now);
+      localStorage.setItem('prescreen_last_checked', now.toISOString());
     } finally {
       setApiChecking(false);
     }
@@ -606,8 +824,7 @@ export default function PrescreenDashboard() {
     { label: 'Tier 1', desc: '620+', value: stats?.tier1Count ?? 0, tier: 'tier_1', color: isDark ? 'text-emerald-400' : 'text-emerald-600', bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50' },
     { label: 'Tier 2', desc: '580 - 619', value: stats?.tier2Count ?? 0, tier: 'tier_2', color: isDark ? 'text-blue-400' : 'text-blue-600', bg: isDark ? 'bg-blue-500/10' : 'bg-blue-50' },
     { label: 'Tier 3', desc: '500 - 579', value: stats?.tier3Count ?? 0, tier: 'tier_3', color: isDark ? 'text-amber-400' : 'text-amber-600', bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50' },
-    { label: 'Below', desc: 'Under 500', value: stats?.belowCount ?? 0, tier: 'below', color: isDark ? 'text-red-400' : 'text-red-600', bg: isDark ? 'bg-red-500/10' : 'bg-red-50' },
-    { label: 'Unqualified', desc: 'Filtered', value: stats?.unqualifiedCount ?? 0, tier: 'unqualified', color: isDark ? 'text-gray-400' : 'text-gray-500', bg: isDark ? 'bg-gray-500/10' : 'bg-gray-50' },
+    { label: 'Unqualified', desc: 'Under 500', value: (stats?.belowCount ?? 0) + (stats?.unqualifiedCount ?? 0), tier: 'unqualified', color: isDark ? 'text-gray-400' : 'text-gray-500', bg: isDark ? 'bg-gray-500/10' : 'bg-gray-100' },
     { label: 'No Match', desc: 'Not found', value: stats?.noMatchCount ?? 0, tier: 'no_match', color: isDark ? 'text-red-400/70' : 'text-red-400', bg: isDark ? 'bg-red-500/5' : 'bg-red-50/50' },
   ];
 
@@ -620,46 +837,42 @@ export default function PrescreenDashboard() {
             Prescreen
           </h1>
           {/* Live API status indicator */}
-          <div className="relative group">
-            <button onClick={checkApiStatus} disabled={apiChecking} className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${
-              apiChecking ? (isDark ? 'bg-gray-700/60 text-gray-400' : 'bg-gray-100 text-gray-400') :
-              !apiStatus ? (isDark ? 'bg-gray-700/60 text-gray-400' : 'bg-gray-100 text-gray-400') :
-              apiStatus.status === 'connected' ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-600') :
-              apiStatus.status === 'error' || apiStatus.status === 'blocked' ? (isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600') :
-              (isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-600')
-            }`}>
-              <span className="relative flex h-2.5 w-2.5">
-                {apiChecking && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-50" />
-                )}
-                {apiStatus?.status === 'connected' && !apiChecking && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50" />
-                )}
-                <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                  apiChecking ? (isDark ? 'bg-gray-500' : 'bg-gray-400') :
-                  !apiStatus ? (isDark ? 'bg-gray-500' : 'bg-gray-300') :
-                  apiStatus.status === 'connected' ? 'bg-emerald-500' :
-                  apiStatus.status === 'error' || apiStatus.status === 'blocked' ? 'bg-red-500' :
-                  'bg-amber-500'
-                }`} />
-              </span>
-              {apiChecking ? 'Checking...' :
-               !apiStatus ? 'Check Status' :
-               apiStatus.status === 'connected' ? 'System Online' :
-               apiStatus.status === 'blocked' ? 'IP Blocked' :
-               apiStatus.status === 'not_configured' ? 'Not Configured' : 'Offline'}
-            </button>
-            {/* Hover tooltip */}
-            <div className={`absolute left-1/2 -translate-x-1/2 top-full mt-1.5 px-3 py-1.5 rounded-lg text-[11px] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10 ${
-              isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-800 text-gray-200'
-            }`}>
-              {!apiStatus && !apiChecking && <span>Click to test Altair connection</span>}
-              {apiStatus?.message && <span>{apiStatus.message}</span>}
-              {apiLastChecked && (
-                <span className={isDark ? 'text-gray-500' : 'text-gray-400'}>{apiStatus?.message ? ' \u00B7 ' : ''}Checked {apiLastChecked.toLocaleTimeString()} \u00B7 Click to recheck</span>
+          <button onClick={checkApiStatus} disabled={apiChecking} className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${
+            apiChecking ? (isDark ? 'bg-gray-700/60 text-gray-400' : 'bg-gray-100 text-gray-400') :
+            !apiStatus ? (isDark ? 'bg-gray-700/60 text-gray-400' : 'bg-gray-100 text-gray-400') :
+            apiStatus.status === 'connected' ? (isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-600') :
+            apiStatus.status === 'error' || apiStatus.status === 'blocked' ? (isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-600') :
+            (isDark ? 'bg-amber-900/30 text-amber-400' : 'bg-amber-50 text-amber-600')
+          }`}>
+            <span className="relative flex h-2.5 w-2.5">
+              {apiChecking && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-50" />
               )}
-            </div>
-          </div>
+              {apiStatus?.status === 'connected' && !apiChecking && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50" />
+              )}
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                apiChecking ? (isDark ? 'bg-gray-500' : 'bg-gray-400') :
+                !apiStatus ? (isDark ? 'bg-gray-500' : 'bg-gray-300') :
+                apiStatus.status === 'connected' ? 'bg-emerald-500' :
+                apiStatus.status === 'error' || apiStatus.status === 'blocked' ? 'bg-red-500' :
+                'bg-amber-500'
+              }`} />
+            </span>
+            {apiChecking ? 'Checking...' :
+             !apiStatus ? 'Check Status' :
+             apiStatus.status === 'connected' ? 'System Online' :
+             apiStatus.status === 'blocked' ? 'IP Blocked' :
+             apiStatus.status === 'not_configured' ? 'Not Configured' : 'Offline'}
+          </button>
+          {!apiChecking && (apiStatus || apiLastChecked) && (
+            <span className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+              {apiStatus?.message && <span>{apiStatus.message} · </span>}
+              {apiLastChecked && (
+                <span>Last checked {apiLastChecked.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', timeZone: 'America/Chicago' })} {apiLastChecked.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Chicago' })} CST</span>
+              )}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           {[
@@ -682,68 +895,60 @@ export default function PrescreenDashboard() {
       </div>
 
       {/* Metrics + Quick Add — side by side */}
-      <div className="flex gap-4 items-start">
+      <div className="flex gap-4 items-stretch">
         {/* Score Metrics */}
-        <div className={`rounded-xl border w-[220px] flex-shrink-0 ${isDark ? 'bg-gray-800/80 border-gray-700/60' : 'bg-white border-gray-200'}`}>
+        <div className={`rounded-xl border w-[240px] flex-shrink-0 flex flex-col ${isDark ? 'bg-gray-800/80 border-gray-700/60' : 'bg-white border-gray-200'}`}>
+          {/* Total */}
           <button
             onClick={() => { setTierFilter(''); setMatchStatusFilter(''); setProgramFilter(''); setSearch(''); setDebouncedSearch(''); setPage(1); }}
-            className={`w-full px-3 py-1.5 text-left border-b flex items-center justify-between transition-colors ${
+            className={`px-3 py-2 border-b flex items-center justify-between transition-colors ${
               isDark ? 'border-gray-700/60 hover:bg-gray-700/20' : 'border-gray-100 hover:bg-gray-50'
             } ${!tierFilter ? (isDark ? 'bg-gray-700/20' : 'bg-gray-50/80') : ''}`}
           >
-            <p className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total Leads</p>
-            <p className={`text-lg font-bold tabular-nums ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {stats?.totalLeads ?? 0}
-            </p>
+            <span className={`text-[11px] font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Total</span>
+            <span className={`text-sm font-bold tabular-nums ${isDark ? 'text-white' : 'text-gray-900'}`}>{stats?.totalLeads ?? 0}</span>
           </button>
-          <div className="px-1.5 py-1.5">
-            {tierItems.map((item) => (
-              <button
-                key={item.tier}
-                onClick={() => {
-                  const isActive = tierFilter === (item.tier === 'unqualified' || item.tier === 'no_match' ? 'filtered' : item.tier) && (
-                    item.tier === 'unqualified' ? matchStatusFilter === 'matched' :
-                    item.tier === 'no_match' ? matchStatusFilter === 'no_match' : !matchStatusFilter
-                  );
-                  if (isActive) { setTierFilter(''); setMatchStatusFilter(''); }
-                  else if (item.tier === 'unqualified') { setTierFilter('filtered'); setMatchStatusFilter('matched'); }
-                  else if (item.tier === 'no_match') { setTierFilter('filtered'); setMatchStatusFilter('no_match'); }
-                  else { setTierFilter(item.tier); setMatchStatusFilter(''); }
-                  setPage(1);
-                }}
-                className={(() => {
-                  const isActive = tierFilter === (item.tier === 'unqualified' || item.tier === 'no_match' ? 'filtered' : item.tier) && (
-                    item.tier === 'unqualified' ? matchStatusFilter === 'matched' :
-                    item.tier === 'no_match' ? matchStatusFilter === 'no_match' : !matchStatusFilter
-                  );
-                  return `w-full flex items-center justify-between px-2.5 py-1 rounded-md text-sm transition-colors ${
+          {/* Tiers */}
+          <div className="p-1.5 flex-1 flex flex-col justify-center">
+            {tierItems.map((item) => {
+              const isActive = tierFilter === (item.tier === 'no_match' ? 'filtered' : item.tier) && (
+                item.tier === 'no_match' ? matchStatusFilter === 'no_match' : !matchStatusFilter
+              );
+              return (
+                <button
+                  key={item.tier}
+                  onClick={() => {
+                    if (isActive) { setTierFilter(''); setMatchStatusFilter(''); }
+                    else if (item.tier === 'unqualified') { setTierFilter('unqualified'); setMatchStatusFilter(''); }
+                    else if (item.tier === 'no_match') { setTierFilter('filtered'); setMatchStatusFilter('no_match'); }
+                    else { setTierFilter(item.tier); setMatchStatusFilter(''); }
+                    setPage(1);
+                  }}
+                  className={`w-full flex items-center justify-between px-2 py-[3px] rounded text-[12px] transition-colors ${
                     isActive ? `${item.bg} ${item.color}` : (isDark ? 'text-gray-400 hover:text-white hover:bg-gray-700/20' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50')
-                  }`;
-                })()}
-              >
-                <div className="flex items-center gap-2">
+                  }`}
+                >
                   <span className="font-medium">{item.label}</span>
-                  <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{item.desc}</span>
-                </div>
-                <span className={`tabular-nums font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{item.value}</span>
-              </button>
-            ))}
+                  <span className={`tabular-nums font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{item.value}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Quick Add Form */}
-        <div className={`flex-1 rounded-xl border ${isDark ? 'bg-gray-800/80 border-gray-700/60' : 'bg-white border-gray-200'}`}>
+        <div className={`rounded-xl border w-fit ${isDark ? 'bg-gray-800/80 border-gray-700/60' : 'bg-white border-gray-200'}`}>
           {/* Tabs + queue count header */}
-          <div className={`flex items-center justify-between border-b ${isDark ? 'border-gray-700/60' : 'border-gray-100'}`}>
-            <div className="flex">
-              <button onClick={() => setQaTab('single')} className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${qaTab === 'single' ? (isDark ? 'border-white text-white' : 'border-gray-900 text-gray-900') : `border-transparent ${isDark ? 'text-gray-500' : 'text-gray-400'}`}`}>
+          <div className={`flex items-center justify-between border-b px-4 py-1 ${isDark ? 'border-gray-700/60' : 'border-gray-100'}`}>
+            <div className="flex gap-1">
+              <button onClick={() => setQaTab('single')} className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${qaTab === 'single' ? (isDark ? 'border-white text-white' : 'border-gray-900 text-gray-900') : `border-transparent ${isDark ? 'text-gray-500' : 'text-gray-400'}`}`}>
                 Single Entry
               </button>
-              <button onClick={() => setQaTab('csv')} className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${qaTab === 'csv' ? (isDark ? 'border-white text-white' : 'border-gray-900 text-gray-900') : `border-transparent ${isDark ? 'text-gray-500' : 'text-gray-400'}`}`}>
+              <button onClick={() => setQaTab('csv')} className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${qaTab === 'csv' ? (isDark ? 'border-white text-white' : 'border-gray-900 text-gray-900') : `border-transparent ${isDark ? 'text-gray-500' : 'text-gray-400'}`}`}>
                 CSV
               </button>
             </div>
-            <div className="flex items-center gap-2 pr-3">
+            <div className="flex items-center gap-2">
               <select value={qaProgram} onChange={(e) => setQaProgram(e.target.value)} className={`${qaInput} w-40`} style={selectStyle}>
                 <option value="">Program...</option>
                 {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -783,20 +988,22 @@ export default function PrescreenDashboard() {
             </div>
           )}
 
-          <div className="px-3 py-2">
+          <div className="px-4 py-3">
             {qaError && <p className="text-xs text-red-500 mb-1.5">{qaError}</p>}
 
-            {qaTab === 'single' ? (
-              <div className="space-y-1.5">
+            <div className="grid" style={{ gridTemplateColumns: '1fr', gridTemplateRows: '1fr' }}>
+              {/* Single Entry — always in DOM */}
+              <div className={`space-y-1.5 max-w-2xl transition-opacity duration-150 ${qaTab === 'single' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} style={{ gridArea: '1 / 1' }}>
                 <div className="flex gap-1.5">
-                  <input type="text" value={qaFirst} onChange={(e) => setQaFirst(e.target.value)} placeholder="First name" className={`flex-1 ${qaInput}`} />
-                  <input type="text" value={qaLast} onChange={(e) => setQaLast(e.target.value)} placeholder="Last name" className={`flex-1 ${qaInput}`} />
+                  <input type="text" value={qaFirst} onChange={(e) => setQaFirst(e.target.value)} placeholder="First name" className={`w-32 ${qaInput}`} />
+                  <input type="text" value={qaLast} onChange={(e) => setQaLast(e.target.value)} placeholder="Last name" className={`w-32 ${qaInput}`} />
                   <input type="text" value={qaSsn} onChange={(e) => handleQaSsn(e.target.value)} placeholder="SSN" className={`w-28 ${qaInput}`} />
                   <input type="text" value={qaDob} onChange={(e) => handleQaDob(e.target.value)} placeholder="DOB" className={`w-24 ${qaInput}`} />
                 </div>
                 <div className="flex gap-1.5">
-                  <input type="text" value={qaAddress} onChange={(e) => setQaAddress(e.target.value)} placeholder="Street address" className={`flex-[2] ${qaInput}`} />
-                  <input type="text" value={qaCity} onChange={(e) => setQaCity(e.target.value)} placeholder="City" className={`flex-1 ${qaInput}`} />
+                  <input type="text" value={qaAddress} onChange={(e) => setQaAddress(e.target.value)} placeholder="Street address" className={`w-44 ${qaInput}`} />
+                  <input type="text" value={qaAddress2} onChange={(e) => setQaAddress2(e.target.value)} placeholder="Apt/Unit" className={`w-20 ${qaInput}`} />
+                  <input type="text" value={qaCity} onChange={(e) => setQaCity(e.target.value)} placeholder="City" className={`w-28 ${qaInput}`} />
                   <select value={qaState} onChange={(e) => setQaState(e.target.value)} className={`w-16 ${qaInput}`} style={selectStyle}>
                     <option value="">ST</option>
                     {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -814,8 +1021,8 @@ export default function PrescreenDashboard() {
                   </button>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-1.5">
+              {/* CSV — always in DOM */}
+              <div className={`space-y-1.5 transition-opacity duration-150 ${qaTab === 'csv' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} style={{ gridArea: '1 / 1' }}>
                 <div className="flex gap-1.5">
                   <textarea
                     value={qaCsv}
@@ -838,7 +1045,7 @@ export default function PrescreenDashboard() {
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Mini batch queue */}
             {qaBatch.length > 0 && (
@@ -855,12 +1062,216 @@ export default function PrescreenDashboard() {
         </div>
       </div>
 
+      {/* Incoming Applications (Arive/Zapier) */}
+      {(incomingApps.length > 0 || dismissedApps.length > 0) && (
+        <div className={`rounded-lg border overflow-hidden ${isDark ? 'bg-gray-800/80 border-gray-700/60' : 'bg-white border-gray-200'}`}>
+          <div className={`px-4 py-3 flex items-center justify-between cursor-pointer transition-colors ${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`} onClick={() => setIncomingExpanded(!incomingExpanded)}>
+            <div className="flex items-center gap-2 min-w-0">
+              <svg className={`w-3.5 h-3.5 transition-transform ${incomingExpanded ? 'rotate-90' : ''} ${isDark ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <span className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+                Incoming Applications
+              </span>
+              {incomingApps.length > 0 && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                  {incomingApps.length}
+                </span>
+              )}
+              <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>from Arive</span>
+            </div>
+          </div>
+
+          {incomingExpanded && (
+            <div className={`border-t ${isDark ? 'border-gray-700/60' : 'border-gray-100'}`}>
+              {/* Pending / Dismissed tabs */}
+              {dismissedApps.length > 0 && (
+                <div className={`flex gap-0 border-b ${isDark ? 'border-gray-700/60' : 'border-gray-100'}`}>
+                  <button
+                    onClick={() => setIncomingTab('pending')}
+                    className={`px-4 py-2 text-xs font-medium transition-colors ${incomingTab === 'pending'
+                      ? (isDark ? 'text-blue-400 border-b-2 border-blue-400' : 'text-blue-600 border-b-2 border-blue-600')
+                      : (isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600')}`}
+                  >
+                    Pending{incomingApps.length > 0 ? ` (${incomingApps.length})` : ''}
+                  </button>
+                  <button
+                    onClick={() => setIncomingTab('dismissed')}
+                    className={`px-4 py-2 text-xs font-medium transition-colors ${incomingTab === 'dismissed'
+                      ? (isDark ? 'text-blue-400 border-b-2 border-blue-400' : 'text-blue-600 border-b-2 border-blue-600')
+                      : (isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600')}`}
+                  >
+                    Dismissed ({dismissedApps.length})
+                  </button>
+                </div>
+              )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className={isDark ? 'bg-gray-900/40' : 'bg-gray-50'}>
+                      <th className={`px-3 py-2 text-left font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Name</th>
+                      <th className={`px-3 py-2 text-left font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Address</th>
+                      <th className={`px-3 py-2 text-left font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Contact</th>
+                      <th className={`px-3 py-2 text-left font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Loan</th>
+                      <th className={`px-3 py-2 text-left font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>SSN</th>
+                      <th className={`px-3 py-2 text-left font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>DOB</th>
+                      <th className={`px-3 py-2 text-left font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Received</th>
+                      <th className={`px-3 py-2 text-center font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${isDark ? 'divide-gray-700/40' : 'divide-gray-100'}`}>
+                    {(() => {
+                      // Group apps by loan ID for visual linking
+                      const activeApps = incomingTab === 'pending' ? incomingApps : dismissedApps;
+                      const loanGroups = new Map<string, IncomingApp[]>();
+                      const ungrouped: IncomingApp[] = [];
+                      activeApps.forEach(app => {
+                        if (app.sourceLoanId) {
+                          const group = loanGroups.get(app.sourceLoanId) || [];
+                          group.push(app);
+                          loanGroups.set(app.sourceLoanId, group);
+                        } else {
+                          ungrouped.push(app);
+                        }
+                      });
+                      // Flatten: grouped first (in order), then ungrouped
+                      const ordered: { app: IncomingApp; groupSize: number; groupIndex: number; partner: string | null }[] = [];
+                      loanGroups.forEach(group => {
+                        group.sort((a, b) => a.borrowerType === 'primary' ? -1 : 1);
+                        group.forEach((app, i) => {
+                          const partner = group.find(g => g.id !== app.id);
+                          ordered.push({ app, groupSize: group.length, groupIndex: i, partner: partner ? `${partner.firstName} ${partner.lastName}` : null });
+                        });
+                      });
+                      ungrouped.forEach(app => ordered.push({ app, groupSize: 1, groupIndex: 0, partner: null }));
+
+                      return ordered.map(({ app, groupSize, groupIndex, partner }) => {
+                        const isCo = app.borrowerType === 'coborrower';
+                        const isGrouped = groupSize > 1;
+                        const isFirstInGroup = groupIndex === 0;
+                        const isLastInGroup = groupIndex === groupSize - 1;
+                        return (
+                      <tr key={app.id} className={`${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'} transition-colors relative`}>
+                        <td className={`py-2.5 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                          <div className="flex items-start gap-0">
+                            {/* Color bar for grouped loans */}
+                            {isGrouped ? (
+                              <div className={`w-1 self-stretch flex-shrink-0 ${isDark ? 'bg-blue-500' : 'bg-blue-400'} ${isFirstInGroup ? 'rounded-t' : ''} ${isLastInGroup ? 'rounded-b' : ''}`} style={{ minHeight: '100%' }} />
+                            ) : (
+                              <div className="w-1 flex-shrink-0" />
+                            )}
+                            <div className="pl-2.5">
+                              <div className="font-medium flex items-center gap-1.5">
+                                {isCo && <span className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>&#8627;</span>}
+                                {app.firstName} {app.lastName}
+                                {isCo && (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${isDark ? 'bg-purple-900/40 text-purple-300' : 'bg-purple-100 text-purple-700'}`}>Co-Borrower</span>
+                                )}
+                              </div>
+                              {partner && (
+                                <div className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                  {isCo ? `Primary: ${partner}` : `Co-Borrower: ${partner}`}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className={`px-3 py-2.5 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                          <div className="max-w-[200px] truncate">{app.address}{app.city ? `, ${app.city}` : ''}{app.state ? `, ${app.state}` : ''} {app.zip}</div>
+                        </td>
+                        <td className={`px-3 py-2.5 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                          <div className="max-w-[160px] truncate">{app.email || app.phone || '—'}</div>
+                        </td>
+                        <td className={`px-3 py-2.5 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {app.loanPurpose || app.loanType || '—'}
+                          {app.loanAmount ? <span className="ml-1 opacity-60">${(app.loanAmount / 1000).toFixed(0)}k</span> : ''}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {app.hasSsn ? (
+                            <span className={`text-xs ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>***-**-{app.ssnLastFour}</span>
+                          ) : (
+                            <input
+                              type="text"
+                              placeholder="XXX-XX-XXXX"
+                              value={incomingSsnInputs[app.id] || ''}
+                              onChange={e => handleIncomingSsn(app.id, e.target.value)}
+                              onBlur={() => saveSsnDob(app.id)}
+                              className={`w-[105px] px-1.5 py-1 text-xs rounded border ${isDark ? 'bg-gray-700/50 border-gray-600 text-gray-200 placeholder-gray-500' : 'bg-white border-gray-300 text-gray-800 placeholder-gray-400'} focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                            />
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {app.hasDob ? (
+                            <span className={`text-xs ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>{app.dob || 'Set'}</span>
+                          ) : (
+                            <input
+                              type="text"
+                              placeholder="MM/DD/YYYY"
+                              value={incomingDobInputs[app.id] || (app.dob ? app.dob.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$2/$3/$1') : '')}
+                              onChange={e => handleIncomingDob(app.id, e.target.value)}
+                              onBlur={() => saveSsnDob(app.id)}
+                              className={`w-[95px] px-1.5 py-1 text-xs rounded border ${isDark ? 'bg-gray-700/50 border-gray-600 text-gray-200 placeholder-gray-500' : 'bg-white border-gray-300 text-gray-800 placeholder-gray-400'} focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                            />
+                          )}
+                        </td>
+                        <td className={`px-3 py-2.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {app.createdAt ? new Date(app.createdAt).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {incomingTab === 'pending' ? (
+                              <>
+                                <button
+                                  onClick={() => addAppToBatch(app.id)}
+                                  title="Add to Quick Add batch"
+                                  className={`px-2.5 py-1 text-xs rounded font-medium transition-colors ${isDark ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                                >
+                                  + Add to Batch
+                                </button>
+                                <button
+                                  onClick={() => dismissApp(app.id)}
+                                  title="Dismiss"
+                                  className={`p-1 rounded transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-500 hover:text-red-400' : 'hover:bg-gray-100 text-gray-400 hover:text-red-500'}`}
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => restoreApp(app.id)}
+                                title="Restore to pending"
+                                className={`px-2.5 py-1 text-xs rounded font-medium transition-colors ${isDark ? 'bg-gray-600 hover:bg-gray-500 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'}`}
+                              >
+                                Restore
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                        );
+                      });
+                    })()}
+                    {(incomingTab === 'pending' ? incomingApps : dismissedApps).length === 0 && (
+                      <tr>
+                        <td colSpan={8} className={`px-4 py-6 text-center text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          {incomingTab === 'pending' ? 'No pending applications' : 'No dismissed applications'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Fill Missing Bureaus */}
       {fillData && fillData.summary.totalLeadsWithMissing > 0 && !fillResult && (
         <div className={`rounded-lg border overflow-hidden ${isDark ? 'bg-gray-800/80 border-gray-700/60' : 'bg-white border-gray-200'}`}>
-          {/* Header row — always visible */}
-          <div className="px-4 py-3 flex items-center justify-between">
-            <button onClick={() => setFillExpanded(!fillExpanded)} className="flex items-center gap-2 min-w-0">
+          {/* Header row — always visible, click anywhere to expand */}
+          <div className={`px-4 py-3 flex items-center justify-between cursor-pointer transition-colors ${isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50'}`} onClick={() => setFillExpanded(!fillExpanded)}>
+            <div className="flex items-center gap-2 min-w-0">
               <svg className={`w-3.5 h-3.5 transition-transform ${fillExpanded ? 'rotate-90' : ''} ${isDark ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -873,20 +1284,27 @@ export default function PrescreenDashboard() {
               <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 {fillData.summary.missingEq > 0 && <span className="ml-1"><span className={isDark ? 'text-red-400' : 'text-red-500'}>EQ</span> {fillData.summary.missingEq}</span>}
                 {fillData.summary.missingTu > 0 && <span className="ml-2"><span className={isDark ? 'text-blue-400' : 'text-blue-500'}>TU</span> {fillData.summary.missingTu}</span>}
-                {fillData.summary.missingEx > 0 && <span className="ml-2"><span className={isDark ? 'text-purple-400' : 'text-purple-500'}>EX</span> {fillData.summary.missingEx}</span>}
+                {fillData.summary.missingEx > 0 && <span className="ml-2"><span className={isDark ? 'text-green-400' : 'text-green-500'}>EX</span> {fillData.summary.missingEx}</span>}
               </span>
-            </button>
-            <div className="flex items-center gap-2">
-              {fillSelected.size > 0 && (
-                <button
-                  onClick={() => handleFillMissing(Array.from(fillSelected))}
-                  disabled={filling}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                    isDark ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-900 text-white hover:bg-gray-800'
-                  } disabled:opacity-50`}
-                >
-                  {filling ? 'Filling...' : `Fill Selected (${fillSelected.size})`}
-                </button>
+            </div>
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              {fillTotalSelections > 0 && (
+                <>
+                  <span className={`text-[10px] tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {fillBureauCounts.eq > 0 && <span className="mr-1.5"><span className={isDark ? 'text-red-400' : 'text-red-500'}>EQ</span> {fillBureauCounts.eq}</span>}
+                    {fillBureauCounts.tu > 0 && <span className="mr-1.5"><span className={isDark ? 'text-blue-400' : 'text-blue-500'}>TU</span> {fillBureauCounts.tu}</span>}
+                    {fillBureauCounts.ex > 0 && <span><span className={isDark ? 'text-green-400' : 'text-green-500'}>EX</span> {fillBureauCounts.ex}</span>}
+                  </span>
+                  <button
+                    onClick={() => handleFillMissing(fillSelected)}
+                    disabled={filling}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                      isDark ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-900 text-white hover:bg-gray-800'
+                    } disabled:opacity-50`}
+                  >
+                    {filling ? 'Filling...' : `Fill Selected (${fillTotalSelections})`}
+                  </button>
+                </>
               )}
               <button
                 onClick={() => handleFillMissing()}
@@ -908,63 +1326,121 @@ export default function PrescreenDashboard() {
           {/* Expandable lead list */}
           {fillExpanded && fillData.leads.length > 0 && (
             <div className={`border-t ${isDark ? 'border-gray-700/60' : 'border-gray-100'}`}>
-              {/* Select all */}
-              <div className={`px-4 py-2 flex items-center gap-2 ${isDark ? 'bg-gray-900/30' : 'bg-gray-50/50'}`}>
+              {/* Search + Select all */}
+              <div className={`px-4 py-2 flex items-center gap-3 ${isDark ? 'bg-gray-900/30' : 'bg-gray-50/50'}`}>
                 <input
-                  type="checkbox"
-                  checked={fillSelected.size === fillData.leads.length}
-                  onChange={() => {
-                    if (fillSelected.size === fillData.leads.length) {
-                      setFillSelected(new Set());
+                  type="text"
+                  value={fillSearch}
+                  onChange={(e) => setFillSearch(e.target.value)}
+                  placeholder="Search by name..."
+                  className={`px-2.5 py-1 rounded-md border text-xs outline-none w-48 ${
+                    isDark ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-gray-600' : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-gray-300'
+                  }`}
+                />
+                <button
+                  onClick={() => {
+                    const filtered = fillData.leads.filter((l: any) => {
+                      if (!fillSearch) return true;
+                      const q = fillSearch.toLowerCase();
+                      return `${l.firstName} ${l.lastName}`.toLowerCase().includes(q);
+                    });
+                    const allSelected = filtered.every((l: any) => {
+                      const sel = fillSelected.get(l.id);
+                      return sel && l.missingBureaus.every((b: string) => sel.has(b));
+                    });
+                    if (allSelected) {
+                      setFillSelected(prev => {
+                        const next = new Map(prev);
+                        filtered.forEach((l: any) => next.delete(l.id));
+                        return next;
+                      });
                     } else {
-                      setFillSelected(new Set(fillData.leads.map((l: any) => l.id)));
+                      setFillSelected(prev => {
+                        const next = new Map(prev);
+                        filtered.forEach((l: any) => { next.set(l.id, new Set(l.missingBureaus)); });
+                        return next;
+                      });
                     }
                   }}
-                  className="w-3.5 h-3.5 rounded cursor-pointer accent-gray-600"
-                />
-                <span className={`text-[11px] font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                  {fillSelected.size === fillData.leads.length ? 'Deselect All' : 'Select All'}
-                </span>
+                  className={`text-[11px] font-medium ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  {fillData.leads.filter((l: any) => {
+                    if (!fillSearch) return true;
+                    const q = fillSearch.toLowerCase();
+                    return `${l.firstName} ${l.lastName}`.toLowerCase().includes(q);
+                  }).every((l: any) => {
+                    const sel = fillSelected.get(l.id);
+                    return sel && l.missingBureaus.every((b: string) => sel.has(b));
+                  }) ? 'Deselect All' : 'Select All'}
+                </button>
+                {fillSearch && (
+                  <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {fillData.leads.filter((l: any) => `${l.firstName} ${l.lastName}`.toLowerCase().includes(fillSearch.toLowerCase())).length} of {fillData.leads.length}
+                  </span>
+                )}
               </div>
               {/* Lead rows */}
               <div className="max-h-64 overflow-y-auto">
-                {fillData.leads.map((lead: any) => (
-                  <div
-                    key={lead.id}
-                    className={`px-4 py-2 flex items-center gap-3 ${
-                      isDark ? 'hover:bg-gray-700/20 border-b border-gray-700/20' : 'hover:bg-gray-50 border-b border-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={fillSelected.has(lead.id)}
-                      onChange={() => {
-                        setFillSelected(prev => {
-                          const next = new Set(prev);
-                          if (next.has(lead.id)) next.delete(lead.id);
-                          else next.add(lead.id);
-                          return next;
-                        });
-                      }}
-                      className="w-3.5 h-3.5 rounded cursor-pointer accent-gray-600"
-                    />
-                    <span className={`text-xs font-mono ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{formatId(lead.id)}</span>
-                    <span className={`text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
-                      {lead.firstName} {lead.lastName}
-                    </span>
-                    <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                      {lead.existingScores && Object.entries(lead.existingScores).map(([b, s]: [string, any]) => (
-                        <span key={b} className="mr-2">
-                          <span className="font-medium" style={{ color: b === 'eq' ? '#ef4444' : b === 'tu' ? '#3b82f6' : '#a855f7' }}>{b.toUpperCase()}</span>
-                          <span className="ml-0.5">{s ?? '--'}</span>
-                        </span>
-                      ))}
-                    </span>
-                    <span className={`text-[10px] ml-auto ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>
-                      missing: {lead.missingBureaus.map((b: string) => b.toUpperCase()).join(', ')}
-                    </span>
-                  </div>
-                ))}
+                {fillData.leads.filter((l: any) => {
+                  if (!fillSearch) return true;
+                  const q = fillSearch.toLowerCase();
+                  return `${l.firstName} ${l.lastName}`.toLowerCase().includes(q);
+                }).map((lead: any) => {
+                  const selectedBureaus = fillSelected.get(lead.id) || new Set<string>();
+                  const bureauColors: Record<string, { text: string; accent: string }> = {
+                    eq: { text: isDark ? 'text-red-400' : 'text-red-500', accent: isDark ? '#f87171' : '#ef4444' },
+                    tu: { text: isDark ? 'text-blue-400' : 'text-blue-500', accent: isDark ? '#60a5fa' : '#3b82f6' },
+                    ex: { text: isDark ? 'text-green-400' : 'text-green-500', accent: isDark ? '#4ade80' : '#22c55e' },
+                  };
+                  return (
+                    <div
+                      key={lead.id}
+                      className={`px-4 py-2 flex items-center gap-3 ${
+                        isDark ? 'hover:bg-gray-700/20 border-b border-gray-700/20' : 'hover:bg-gray-50 border-b border-gray-50'
+                      }`}
+                    >
+                      <span className={`text-xs font-mono ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{formatId(lead.id)}</span>
+                      <span className={`text-sm ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                        {lead.firstName} {lead.lastName}
+                      </span>
+                      <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {lead.existingScores && Object.entries(lead.existingScores).map(([b, s]: [string, any]) => (
+                          <span key={b} className="mr-2">
+                            <span className="font-medium" style={{ color: bureauColors[b]?.accent || '#888' }}>{b.toUpperCase()}</span>
+                            <span className="ml-0.5">{s ?? '--'}</span>
+                          </span>
+                        ))}
+                      </span>
+                      <div className="flex items-center gap-2 ml-auto">
+                        {lead.missingBureaus.map((b: string) => {
+                          const isChecked = selectedBureaus.has(b);
+                          const colors = bureauColors[b] || { text: 'text-gray-400', accent: '#888' };
+                          return (
+                            <label key={b} className="flex items-center gap-1 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setFillSelected(prev => {
+                                    const next = new Map(prev);
+                                    const bureaus = new Set(next.get(lead.id) || []);
+                                    if (isChecked) bureaus.delete(b);
+                                    else bureaus.add(b);
+                                    if (bureaus.size === 0) next.delete(lead.id);
+                                    else next.set(lead.id, bureaus);
+                                    return next;
+                                  });
+                                }}
+                                className="w-3 h-3 rounded cursor-pointer accent-gray-600"
+                              />
+                              <span className={`text-[10px] font-semibold ${colors.text}`}>{b.toUpperCase()}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1001,7 +1477,7 @@ export default function PrescreenDashboard() {
             {(['eq', 'tu', 'ex'] as const).map((b) => {
               const r = fillResult.results[b];
               if (!r || (r.submitted === 0 && !r.error)) return null;
-              const colors = { eq: isDark ? '#f87171' : '#ef4444', tu: isDark ? '#60a5fa' : '#3b82f6', ex: isDark ? '#c084fc' : '#a855f7' };
+              const colors = { eq: isDark ? '#f87171' : '#ef4444', tu: isDark ? '#60a5fa' : '#3b82f6', ex: isDark ? '#4ade80' : '#22c55e' };
               return (
                 <div key={b} className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   <span className="font-semibold" style={{ color: colors[b] }}>{b.toUpperCase()}</span>
@@ -1018,6 +1494,23 @@ export default function PrescreenDashboard() {
 
       {/* Results Table */}
       <div className={`rounded-lg border overflow-hidden ${isDark ? 'bg-gray-800/80 border-gray-700/60' : 'bg-white border-gray-200'}`}>
+        {/* Collapsible header */}
+        <div
+          onClick={() => setTableCollapsed(!tableCollapsed)}
+          className={`flex items-center justify-between px-4 py-2.5 cursor-pointer select-none transition-colors ${isDark ? 'hover:bg-gray-700/30' : 'hover:bg-gray-50'} ${!tableCollapsed ? (isDark ? 'border-b border-gray-700/60' : 'border-b border-gray-100') : ''}`}
+        >
+          <div className="flex items-center gap-2">
+            <svg className={`w-4 h-4 transition-transform ${tableCollapsed ? '' : 'rotate-90'} ${isDark ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            <span className={`text-sm font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Results</span>
+            <span className={`text-xs tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{total}</span>
+          </div>
+          {tableCollapsed && (
+            <span className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>Click to expand</span>
+          )}
+        </div>
+        {!tableCollapsed && <>
         {/* Filters toolbar */}
         <div className={`flex flex-wrap items-center gap-2 px-4 py-3 border-b ${isDark ? 'border-gray-700/60' : 'border-gray-100'}`}>
           <div className="flex-1 min-w-[200px]">
@@ -1032,11 +1525,10 @@ export default function PrescreenDashboard() {
             />
           </div>
           <select
-            value={tierFilter === 'filtered' && matchStatusFilter === 'matched' ? 'unqualified' : tierFilter === 'filtered' && matchStatusFilter === 'no_match' ? 'no_match_filter' : tierFilter}
+            value={tierFilter === 'filtered' && matchStatusFilter === 'no_match' ? 'no_match_filter' : tierFilter}
             onChange={(e) => {
               const v = e.target.value;
-              if (v === 'unqualified') { setTierFilter('filtered'); setMatchStatusFilter('matched'); }
-              else if (v === 'no_match_filter') { setTierFilter('filtered'); setMatchStatusFilter('no_match'); }
+              if (v === 'no_match_filter') { setTierFilter('filtered'); setMatchStatusFilter('no_match'); }
               else { setTierFilter(v); setMatchStatusFilter(''); }
               setPage(1);
             }}
@@ -1049,7 +1541,6 @@ export default function PrescreenDashboard() {
             <option value="tier_1">Tier 1 (620+)</option>
             <option value="tier_2">Tier 2 (580-619)</option>
             <option value="tier_3">Tier 3 (500-579)</option>
-            <option value="below">Below (under 500)</option>
             <option value="unqualified">Unqualified</option>
             <option value="no_match_filter">No Match</option>
             <option value="pending">Pending</option>
@@ -1102,7 +1593,8 @@ export default function PrescreenDashboard() {
                     {[
                       { key: 'id', label: 'ID' },
                       { key: 'last_name', label: 'Name' },
-                      { key: 'middle_score', label: 'Score' },
+                      { key: 'middle_score', label: 'Bureaus' },
+                      { key: 'middle_score', label: 'Mid' },
                       { key: 'tier', label: 'Tier' },
                       { key: 'firm_offer_sent', label: 'Firm Offer' },
                       { key: '', label: 'Hard Pull' },
@@ -1112,7 +1604,7 @@ export default function PrescreenDashboard() {
                       <th
                         key={i}
                         onClick={col.key ? () => handleSort(col.key) : undefined}
-                        className={`px-5 py-3 text-left text-[11px] font-medium uppercase tracking-wider whitespace-nowrap group ${
+                        className={`px-4 py-2.5 text-left text-[11px] font-medium uppercase tracking-wider whitespace-nowrap group ${
                           col.key ? 'cursor-pointer select-none' : ''
                         } ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
                       >
@@ -1135,13 +1627,13 @@ export default function PrescreenDashboard() {
                           : isDark ? 'hover:bg-gray-700/20' : 'hover:bg-gray-50/80'
                       } ${expandedId !== lead.id && idx !== leads.length - 1 ? (isDark ? 'border-b border-gray-700/30' : 'border-b border-gray-100/80') : ''}`}
                     >
-                      <td className="px-5 py-3.5">
+                      <td className="px-4 py-2.5">
                         <span className={`text-xs font-mono ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                           {formatId(lead.id)}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+                      <td className="px-4 py-2.5">
+                        <span className={`text-[13px] font-medium ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                           {lead.firstName} {lead.lastName}
                         </span>
                         {lead.ssnLastFour && (
@@ -1150,12 +1642,12 @@ export default function PrescreenDashboard() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center gap-3">
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
                           {[
                             { key: 'eq', label: 'EQ', score: lead.bureauScores?.eq, hit: lead.bureauHits?.eq, color: isDark ? '#f87171' : '#ef4444' },
                             { key: 'tu', label: 'TU', score: lead.bureauScores?.tu, hit: lead.bureauHits?.tu, color: isDark ? '#60a5fa' : '#3b82f6' },
-                            { key: 'ex', label: 'EX', score: lead.bureauScores?.ex, hit: lead.bureauHits?.ex, color: isDark ? '#c084fc' : '#a855f7' },
+                            { key: 'ex', label: 'EX', score: lead.bureauScores?.ex, hit: lead.bureauHits?.ex, color: isDark ? '#4ade80' : '#22c55e' },
                           ].map((b) => {
                             const hasRow = b.key in (lead.bureauScores || {});
                             const hasScore = b.score != null;
@@ -1168,69 +1660,70 @@ export default function PrescreenDashboard() {
                             return (
                               <div key={b.key} className="flex flex-col items-center gap-0.5">
                                 <div
-                                  className="w-9 h-9 rounded-full flex items-center justify-center"
+                                  className="w-8 h-8 rounded-full flex items-center justify-center"
                                   style={{
                                     background: hasScore
                                       ? `${b.color}18`
                                       : isNoMatch
-                                        ? (isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.04)')
+                                        ? (isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.05)')
                                         : isGreyX
                                           ? (isDark ? 'rgba(107,114,128,0.08)' : 'rgba(107,114,128,0.05)')
-                                          : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'),
+                                          : (isDark ? 'rgba(250,204,21,0.1)' : 'rgba(250,204,21,0.08)'),
                                     border: hasScore
                                       ? `2.5px solid ${b.color}`
                                       : isNoMatch
-                                        ? `2px dashed ${isDark ? 'rgba(239,68,68,0.3)' : 'rgba(239,68,68,0.2)'}`
+                                        ? `2px dashed ${isDark ? 'rgba(239,68,68,0.4)' : 'rgba(239,68,68,0.3)'}`
                                         : isGreyX
                                           ? `2px dashed ${isDark ? 'rgba(107,114,128,0.4)' : 'rgba(107,114,128,0.25)'}`
-                                          : `2px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`
+                                          : `2px dashed ${isDark ? 'rgba(250,204,21,0.5)' : 'rgba(250,204,21,0.6)'}`
                                   }}
                                 >
                                   {hasScore ? (
                                     <span className={`text-[10px] font-bold tabular-nums ${isDark ? 'text-white' : 'text-gray-900'}`}>{b.score}</span>
                                   ) : isNoMatch ? (
-                                    <span className={`text-[7px] font-bold ${isDark ? 'text-red-400/60' : 'text-red-400/50'}`}>N/M</span>
+                                    <span className={`text-[7px] font-bold ${isDark ? 'text-red-400/70' : 'text-red-500/60'}`}>N/M</span>
                                   ) : isGreyX ? (
                                     <span className={`text-[10px] font-bold ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{'\u2717'}</span>
                                   ) : (
-                                    <span className={`text-[10px] ${isDark ? 'text-gray-700' : 'text-gray-300'}`}>{'\u2014'}</span>
+                                    <span className={`text-[11px] font-bold ${isDark ? 'text-yellow-400' : 'text-yellow-500'}`}>!</span>
                                   )}
                                 </div>
-                                <span className="text-[9px] font-semibold tracking-wide" style={{ color: hasScore || hasRow ? b.color : (isDark ? '#4b5563' : '#d1d5db') }}>{b.label}</span>
+                                <span className="text-[9px] font-semibold tracking-wide" style={{ color: isGreyX ? (isDark ? '#6b7280' : '#9ca3af') : b.color }}>{b.label}</span>
                               </div>
                             );
                           })}
-                          {lead.middleScore != null && lead.bureauScores?.eq != null && lead.bureauScores?.tu != null && lead.bureauScores?.ex != null && (
-                            <div className={`ml-1 pl-3 border-l ${isDark ? 'border-gray-700/60' : 'border-gray-200'}`}>
-                              <div className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Mid</div>
-                              <div className={`text-sm font-bold tabular-nums ${isDark ? 'text-white' : 'text-gray-900'}`}>{lead.middleScore}</div>
-                            </div>
-                          )}
                         </div>
                       </td>
-                      <td className="px-5 py-2.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 text-[11px] rounded-full font-medium ${tierBadge(lead.tier, isDark, lead.matchStatus)}`}>
+                      <td className="px-4 py-2.5">
+                        {lead.middleScore != null && lead.bureauScores?.eq != null && lead.bureauScores?.tu != null && lead.bureauScores?.ex != null ? (
+                          <span className={`text-sm font-bold tabular-nums ${isDark ? 'text-white' : 'text-gray-900'}`}>{lead.middleScore}</span>
+                        ) : (
+                          <span className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{'\u2014'}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-medium ${tierBadge(lead.tier, isDark, lead.matchStatus)}`}>
                           {tierLabel(lead.tier, lead.matchStatus)}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-4 py-2.5">
                         {lead.firmOfferSent ? (
-                          <span className={`inline-flex items-center px-2 py-0.5 text-[11px] rounded-full font-medium ${isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`}>Sent</span>
+                          <span className={`inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-medium ${isDark ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`}>Sent</span>
                         ) : (
-                          <span className={`text-sm ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{'\u2014'}</span>
+                          <span className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{'\u2014'}</span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-4 py-2.5">
                         {lead.hardPullCount > 0 ? (
-                          <span className={`inline-flex items-center px-2 py-0.5 text-[11px] rounded-full font-medium ${isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700'}`}>{lead.hardPullCount}</span>
+                          <span className={`inline-flex items-center px-2 py-0.5 text-[10px] rounded-full font-medium ${isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700'}`}>{lead.hardPullCount}</span>
                         ) : (
-                          <span className={`text-sm ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{'\u2014'}</span>
+                          <span className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>{'\u2014'}</span>
                         )}
                       </td>
-                      <td className={`px-5 py-3.5 text-xs tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {new Date(lead.createdAt).toLocaleDateString()}
+                      <td className={`px-3 py-2 text-[11px] tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {new Date((lead as any).lastActivity || lead.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="px-3 py-3.5">
+                      <td className="px-4 py-2.5">
                         {(lead.matchStatus === 'api_error' || lead.matchStatus === 'no_match' || lead.tier === 'pending' || (lead.tier === 'filtered' && lead.matchStatus === 'matched')) && (
                           <button
                             onClick={(e) => toggleRetryQueue(lead.id, e)}
@@ -1247,7 +1740,7 @@ export default function PrescreenDashboard() {
                     </tr>
                     {isExpRow && (
                       <tr>
-                        <td colSpan={8} className={`px-0 py-0 ${isDark ? 'border-b border-gray-700/30' : 'border-b border-gray-100/80'}`}>
+                        <td colSpan={9} className={`px-0 py-0 ${isDark ? 'border-b border-gray-700/30' : 'border-b border-gray-100/80'}`}>
                           <div className={`px-6 py-4 ${isDark ? 'bg-gradient-to-b from-gray-800/60 to-gray-800/30' : 'bg-gradient-to-b from-gray-50 to-white'}`}>
                             {expandedLoading ? (
                               <div className="flex items-center justify-center py-6">
@@ -1264,13 +1757,74 @@ export default function PrescreenDashboard() {
                                     </span>
                                   )}
                                   {expandedData.ssnLastFour && (
-                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono ${isDark ? 'bg-gray-700/50 text-gray-400' : 'bg-white text-gray-500 shadow-sm border border-gray-100'}`}>
-                                      ***-**-{expandedData.ssnLastFour}
+                                    <span
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (revealedSsn) { setRevealedSsn(null); return; }
+                                        setSsnLoading(true);
+                                        try {
+                                          const res = await fetch(`/api/prescreen/results/${expandedId}/decrypt`, {
+                                            method: 'POST', credentials: 'include',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ field: 'ssn' }),
+                                          });
+                                          const data = await res.json();
+                                          if (res.ok && data.data?.value) {
+                                            const d = data.data.value.replace(/\D/g, '');
+                                            setRevealedSsn(`${d.slice(0,3)}-${d.slice(3,5)}-${d.slice(5)}`);
+                                          }
+                                        } catch {} finally { setSsnLoading(false); }
+                                      }}
+                                      className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono cursor-pointer transition-colors ${isDark ? 'bg-gray-700/50 text-gray-400 hover:bg-gray-600/50 hover:text-gray-300' : 'bg-white text-gray-500 shadow-sm border border-gray-100 hover:bg-gray-50 hover:text-gray-700'}`}
+                                      title="Click to reveal full SSN"
+                                    >
+                                      {ssnLoading ? '...' : revealedSsn || `***-**-${expandedData.ssnLastFour}`}
+                                    </span>
+                                  )}
+                                  {expandedData.hasDob && (
+                                    <span
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (revealedDob) { setRevealedDob(null); return; }
+                                        setDobLoading(true);
+                                        try {
+                                          const res = await fetch(`/api/prescreen/results/${expandedId}/decrypt`, {
+                                            method: 'POST', credentials: 'include',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ field: 'dob' }),
+                                          });
+                                          const data = await res.json();
+                                          if (res.ok && data.data?.value) {
+                                            const v = data.data.value;
+                                            const d = new Date(v.includes('-') || v.includes('/') ? v : `${v.slice(0,4)}-${v.slice(4,6)}-${v.slice(6,8)}`);
+                                            setRevealedDob(isNaN(d.getTime()) ? v : `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`);
+                                          }
+                                        } catch {} finally { setDobLoading(false); }
+                                      }}
+                                      className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono cursor-pointer transition-colors ${isDark ? 'bg-gray-700/50 text-gray-400 hover:bg-gray-600/50 hover:text-gray-300' : 'bg-white text-gray-500 shadow-sm border border-gray-100 hover:bg-gray-50 hover:text-gray-700'}`}
+                                      title="Click to reveal date of birth"
+                                    >
+                                      {dobLoading ? '...' : revealedDob ? `DOB: ${revealedDob}` : 'DOB: ••/••/••••'}
+                                    </span>
+                                  )}
+                                  {expandedData.middleInitial && (
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs ${isDark ? 'bg-gray-700/50 text-gray-400' : 'bg-white text-gray-500 shadow-sm border border-gray-100'}`}>
+                                      MI: {expandedData.middleInitial}
                                     </span>
                                   )}
                                   {expandedData.program && (
-                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs ${isDark ? 'bg-blue-900/20 text-blue-400/80' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
-                                      {expandedData.program.name}{expandedData.batch ? ` / ${expandedData.batch.name}` : ''}
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs ${isDark ? 'bg-gray-700/50 text-gray-400' : 'bg-white text-gray-500 shadow-sm border border-gray-100'}`}>
+                                      {expandedData.program.name}{expandedData.batch ? ` / ${expandedData.batch.name} (#${expandedData.batch.id})` : ''}
+                                    </span>
+                                  )}
+                                  {expandedData.segmentName && (
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs ${isDark ? 'bg-gray-700/50 text-gray-400' : 'bg-white text-gray-500 shadow-sm border border-gray-100'}`}>
+                                      Segment: {expandedData.segmentName}
+                                    </span>
+                                  )}
+                                  {expandedData.createdAt && (
+                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs ${isDark ? 'bg-gray-700/50 text-gray-500' : 'bg-white text-gray-400 shadow-sm border border-gray-100'}`}>
+                                      Added: {new Date(expandedData.createdAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
                                     </span>
                                   )}
                                   {expandedData.errorMessage && (
@@ -1408,70 +1962,180 @@ export default function PrescreenDashboard() {
 
                                 {/* Notes — full width */}
                                 <div className={`rounded-lg p-3 ${isDark ? 'bg-gray-700/30 border border-gray-600/30' : 'bg-white border border-gray-150 shadow-sm'}`} onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex items-center gap-3">
-                                    <span className={`text-[11px] font-semibold shrink-0 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Notes</span>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className={`text-[11px] font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Notes</span>
+                                    {expandedData.leadNotes?.length > 0 && (
+                                      <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{expandedData.leadNotes.length} note{expandedData.leadNotes.length !== 1 ? 's' : ''}</span>
+                                    )}
+                                  </div>
+                                  {expandedData.leadNotes?.length > 0 && (
+                                    <div className="space-y-2 mb-2">
+                                      {expandedData.leadNotes.map((note: any) => (
+                                        <div key={note.id} className={`group/note rounded-md p-2 ${isDark ? 'bg-gray-600/20' : 'bg-gray-50'}`}>
+                                          {inlineNotes === `edit-${note.id}` ? (
+                                            <div className="flex items-center gap-2">
+                                              <input
+                                                type="text"
+                                                defaultValue={note.content}
+                                                id={`note-edit-${note.id}`}
+                                                className={`flex-1 px-2 py-1 text-xs rounded-md border ${isDark ? 'bg-gray-600/50 border-gray-500/50 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter') {
+                                                    const val = (e.target as HTMLInputElement).value.trim();
+                                                    if (!val) return;
+                                                    setInlineNotesSaving(true);
+                                                    fetch(`/api/prescreen/results/${expandedId}/notes`, {
+                                                      method: 'PUT', credentials: 'include',
+                                                      headers: { 'Content-Type': 'application/json' },
+                                                      body: JSON.stringify({ noteId: note.id, content: val }),
+                                                    }).then(() => {
+                                                      setInlineNotes('');
+                                                      return fetch(`/api/prescreen/results/${expandedId}`, { credentials: 'include' });
+                                                    }).then(r => r.json()).then(d => { if (d.data) setExpandedData(d.data); }).finally(() => setInlineNotesSaving(false));
+                                                  }
+                                                  if (e.key === 'Escape') setInlineNotes('');
+                                                }}
+                                              />
+                                              <button onClick={() => {
+                                                const el = document.getElementById(`note-edit-${note.id}`) as HTMLInputElement;
+                                                const val = el?.value.trim();
+                                                if (!val) return;
+                                                setInlineNotesSaving(true);
+                                                fetch(`/api/prescreen/results/${expandedId}/notes`, {
+                                                  method: 'PUT', credentials: 'include',
+                                                  headers: { 'Content-Type': 'application/json' },
+                                                  body: JSON.stringify({ noteId: note.id, content: val }),
+                                                }).then(() => {
+                                                  setInlineNotes('');
+                                                  return fetch(`/api/prescreen/results/${expandedId}`, { credentials: 'include' });
+                                                }).then(r => r.json()).then(d => { if (d.data) setExpandedData(d.data); }).finally(() => setInlineNotesSaving(false));
+                                              }} disabled={inlineNotesSaving} className="px-2 py-1 text-[10px] font-medium rounded-md bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-40">
+                                                {inlineNotesSaving ? '...' : 'Save'}
+                                              </button>
+                                              <button onClick={() => setInlineNotes('')} className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Cancel</button>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-start justify-between gap-2">
+                                              <div className="flex-1 min-w-0">
+                                                <p className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{note.content}</p>
+                                                <div className={`flex items-center gap-2 mt-1 text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                                  <span>{new Date(note.createdAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })} {new Date(note.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                                                  {note.createdByEmail && <span>{note.createdByEmail}</span>}
+                                                  {note.updatedAt && new Date(note.updatedAt).getTime() - new Date(note.createdAt).getTime() > 1000 && <span className="italic">edited</span>}
+                                                </div>
+                                              </div>
+                                              <div className="flex items-center gap-1 opacity-0 group-hover/note:opacity-100 transition-opacity shrink-0">
+                                                <button onClick={() => setInlineNotes(`edit-${note.id}`)} className={`text-[10px] px-1.5 py-0.5 rounded ${isDark ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-600/50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}>Edit</button>
+                                                <button onClick={() => {
+                                                  fetch(`/api/prescreen/results/${expandedId}/notes?noteId=${note.id}`, { method: 'DELETE', credentials: 'include' })
+                                                    .then(() => fetch(`/api/prescreen/results/${expandedId}`, { credentials: 'include' }))
+                                                    .then(r => r.json()).then(d => { if (d.data) setExpandedData(d.data); });
+                                                }} className={`text-[10px] px-1.5 py-0.5 rounded ${isDark ? 'text-red-500/60 hover:text-red-400 hover:bg-red-900/20' : 'text-red-400/60 hover:text-red-500 hover:bg-red-50'}`}>Delete</button>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2">
                                     <input
                                       type="text"
-                                      value={inlineNotes}
-                                      onChange={(e) => { setInlineNotes(e.target.value); setInlineNotesDirty(true); }}
-                                      placeholder="Add notes about this lead..."
+                                      value={inlineNotes.startsWith('edit-') ? '' : inlineNotes}
+                                      onChange={(e) => setInlineNotes(e.target.value)}
+                                      placeholder="Add a note..."
                                       className={`flex-1 px-3 py-1.5 text-xs rounded-md border ${isDark ? 'bg-gray-600/30 border-gray-600/40 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-100 text-gray-900 placeholder-gray-400'}`}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && inlineNotes.trim() && !inlineNotes.startsWith('edit-')) {
+                                          setInlineNotesSaving(true);
+                                          fetch(`/api/prescreen/results/${expandedId}/notes`, {
+                                            method: 'POST', credentials: 'include',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ content: inlineNotes.trim() }),
+                                          }).then(() => {
+                                            setInlineNotes('');
+                                            return fetch(`/api/prescreen/results/${expandedId}`, { credentials: 'include' });
+                                          }).then(r => r.json()).then(d => { if (d.data) setExpandedData(d.data); }).finally(() => setInlineNotesSaving(false));
+                                        }
+                                      }}
                                     />
-                                    {inlineNotesDirty && (
-                                      <button onClick={saveInlineNotes} disabled={inlineNotesSaving}
+                                    {inlineNotes.trim() && !inlineNotes.startsWith('edit-') && (
+                                      <button onClick={() => {
+                                        setInlineNotesSaving(true);
+                                        fetch(`/api/prescreen/results/${expandedId}/notes`, {
+                                          method: 'POST', credentials: 'include',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ content: inlineNotes.trim() }),
+                                        }).then(() => {
+                                          setInlineNotes('');
+                                          return fetch(`/api/prescreen/results/${expandedId}`, { credentials: 'include' });
+                                        }).then(r => r.json()).then(d => { if (d.data) setExpandedData(d.data); }).finally(() => setInlineNotesSaving(false));
+                                      }} disabled={inlineNotesSaving}
                                         className="px-3 py-1.5 text-[11px] font-medium rounded-md bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-40">
-                                        {inlineNotesSaving ? '...' : 'Save'}
+                                        {inlineNotesSaving ? '...' : 'Add'}
                                       </button>
                                     )}
                                   </div>
                                 </div>
 
-                                {/* Bureau Attributes — tab buttons */}
-                                {expandedData.bureauResults.some((br: any) => br.rawOutput) && (
-                                  <div>
-                                    <div className="flex items-center gap-1">
-                                      {expandedData.bureauResults.filter((br: any) => br.rawOutput).map((br: any) => {
-                                        const colors: Record<string, { bg: string; text: string; activeBg: string }> = {
-                                          eq: { bg: isDark ? 'hover:bg-red-900/20' : 'hover:bg-red-50', text: isDark ? 'text-red-400' : 'text-red-500', activeBg: isDark ? 'bg-red-900/25 border-red-500/30' : 'bg-red-50 border-red-200' },
-                                          tu: { bg: isDark ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50', text: isDark ? 'text-blue-400' : 'text-blue-500', activeBg: isDark ? 'bg-blue-900/25 border-blue-500/30' : 'bg-blue-50 border-blue-200' },
-                                          ex: { bg: isDark ? 'hover:bg-purple-900/20' : 'hover:bg-purple-50', text: isDark ? 'text-purple-400' : 'text-purple-500', activeBg: isDark ? 'bg-purple-900/25 border-purple-500/30' : 'bg-purple-50 border-purple-200' },
-                                        };
-                                        const c = colors[br.bureau] || colors.eq;
-                                        const isOpen = expandedBureau === br.bureau;
-                                        const fields = Object.entries(br.rawOutput || {}).filter(([k]) => k !== 'credit_score');
-                                        return (
-                                          <button key={br.bureau}
-                                            onClick={(e) => { e.stopPropagation(); setExpandedBureau(isOpen ? null : br.bureau); }}
-                                            className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all border ${
-                                              isOpen
-                                                ? `${c.activeBg} ${c.text}`
-                                                : `border-transparent ${c.text} ${c.bg} opacity-60 hover:opacity-100`
-                                            }`}
-                                          >
-                                            {br.bureau.toUpperCase()}
-                                            <span className={`ml-1 text-[10px] font-normal ${isOpen ? 'opacity-60' : 'opacity-40'}`}>{fields.length}</span>
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                    {expandedBureau && (() => {
-                                      const br = expandedData.bureauResults.find((r: any) => r.bureau === expandedBureau);
-                                      if (!br?.rawOutput) return null;
-                                      const fields = Object.entries(br.rawOutput).filter(([k]) => k !== 'credit_score');
-                                      const bColors: Record<string, string> = { eq: isDark ? 'border-red-500/20' : 'border-red-100', tu: isDark ? 'border-blue-500/20' : 'border-blue-100', ex: isDark ? 'border-purple-500/20' : 'border-purple-100' };
+                                {/* Bureau Results — full width cards */}
+                                {expandedData.bureauResults?.length > 0 && (
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {[...expandedData.bureauResults].sort((a: any, b: any) => {
+                                      const order: Record<string, number> = { eq: 0, tu: 1, ex: 2 };
+                                      return (order[a.bureau] ?? 9) - (order[b.bureau] ?? 9);
+                                    }).map((br: any) => {
+                                      const cardColors: Record<string, { badge: string; border: string }> = {
+                                        eq: { badge: isDark ? 'bg-red-900/30 text-red-400' : 'bg-red-50 text-red-700', border: isDark ? 'border-red-500/20' : 'border-red-200' },
+                                        tu: { badge: isDark ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-700', border: isDark ? 'border-blue-500/20' : 'border-blue-200' },
+                                        ex: { badge: isDark ? 'bg-green-900/30 text-green-400' : 'bg-green-50 text-green-700', border: isDark ? 'border-green-500/20' : 'border-green-200' },
+                                      };
+                                      const cc = cardColors[br.bureau] || cardColors.eq;
+                                      const bureauNames: Record<string, string> = { eq: 'Equifax', tu: 'TransUnion', ex: 'Experian' };
+                                      const scoreVersion = expandedData.program?.scoreVersions?.[br.bureau] || null;
+                                      const fields = br.rawOutput ? Object.entries(br.rawOutput).filter(([k]: [string, any]) => k !== 'credit_score') : [];
                                       return (
-                                        <div className={`mt-2 p-3 rounded-lg border ${bColors[expandedBureau] || ''} ${isDark ? 'bg-gray-800/40' : 'bg-white shadow-sm'}`}>
-                                          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1.5">
-                                            {fields.map(([key, value]) => (
-                                              <div key={key} className="flex justify-between items-baseline text-[11px] gap-2">
-                                                <span className={isDark ? 'text-gray-500' : 'text-gray-400'}>{getFriendlyName(key)}</span>
-                                                <span className={`font-medium tabular-nums ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>{formatAttributeValue(key, value)}</span>
-                                              </div>
-                                            ))}
+                                        <div key={br.bureau} className={`rounded-lg border p-4 ${cc.border} ${isDark ? 'bg-gray-800/40' : 'bg-white shadow-sm'}`}>
+                                          <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                              <span className={`px-2.5 py-0.5 text-[11px] rounded-full font-medium ${cc.badge}`}>
+                                                {bureauNames[br.bureau] || br.bureau.toUpperCase()}
+                                              </span>
+                                              {br.createdAt && (
+                                                <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                                  {new Date(br.createdAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
+                                                </span>
+                                              )}
+                                              {scoreVersion && (
+                                                <span className={`text-[9px] px-1.5 py-0.5 rounded ${isDark ? 'bg-gray-700/50 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
+                                                  {scoreVersion.replace(/_/g, ' ')}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <span className={`text-xl font-semibold tabular-nums ${br.creditScore != null ? (isDark ? 'text-white' : 'text-gray-900') : (isDark ? 'text-gray-600' : 'text-gray-300')}`}>
+                                              {br.creditScore ?? '\u2014'}
+                                            </span>
                                           </div>
+                                          {fields.length > 0 && (
+                                            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                                              {fields.map(([key, val]: [string, any]) => (
+                                                <div key={key} className="flex justify-between items-baseline gap-2 text-xs">
+                                                  <span className={`leading-tight ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                    {getFriendlyName(key)}
+                                                  </span>
+                                                  <span className={`font-medium whitespace-nowrap shrink-0 tabular-nums ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                                    {formatAttributeValue(key, val)}
+                                                  </span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                          {!br.isHit && !br.creditScore && fields.length === 0 && (
+                                            <p className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>No match</p>
+                                          )}
                                         </div>
                                       );
-                                    })()}
+                                    })}
                                   </div>
                                 )}
                               </div>
@@ -1490,11 +2154,22 @@ export default function PrescreenDashboard() {
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className={`flex items-center justify-between px-5 py-3 border-t ${isDark ? 'border-gray-700/60' : 'border-gray-100'}`}>
+            <div className={`flex items-center justify-between px-5 py-3 border-t ${isDark ? 'border-gray-700/60' : 'border-gray-100'}`}>
+              <div className="flex items-center gap-3">
                 <p className={`text-xs tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                  Page {page} of {totalPages}
+                  {total} results{totalPages > 1 && ` — page ${page} of ${totalPages}`}
                 </p>
+                <select
+                  value={limit}
+                  onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                  className={`px-2 py-0.5 rounded text-[11px] border outline-none cursor-pointer ${isDark ? 'bg-gray-700/50 border-gray-600/60 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-600'}`}
+                >
+                  {[10, 25, 50, 100].map((n) => (
+                    <option key={n} value={n}>{n} / page</option>
+                  ))}
+                </select>
+              </div>
+              {totalPages > 1 && (
                 <div className="flex gap-1">
                   <button
                     onClick={() => setPage(Math.max(1, page - 1))}
@@ -1515,10 +2190,11 @@ export default function PrescreenDashboard() {
                     Next
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
+        </>}
       </div>
     </div>
   );

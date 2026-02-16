@@ -260,11 +260,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Optional: filter to specific lead IDs
+    // Optional: filter to specific lead IDs or per-lead bureau selections
     let selectedIds: number[] | null = null
+    let selections: Record<number, string[]> | null = null
     try {
       const body = await request.json()
-      if (body.leadIds && Array.isArray(body.leadIds)) {
+      if (body.selections && typeof body.selections === 'object') {
+        // New format: { selections: { [leadId]: ['eq','tu','ex'] } }
+        selections = {}
+        for (const [id, bureaus] of Object.entries(body.selections)) {
+          selections[Number(id)] = bureaus as string[]
+        }
+        selectedIds = Object.keys(selections).map(Number)
+      } else if (body.leadIds && Array.isArray(body.leadIds)) {
         selectedIds = body.leadIds
       }
     } catch {
@@ -280,6 +288,10 @@ export async function POST(request: NextRequest) {
       let bureauLeads = missingByBureau[bureau]
       if (selectedIds) {
         bureauLeads = bureauLeads.filter(l => selectedIds!.includes(l.id))
+      }
+      // If per-lead bureau selections provided, only include leads that selected this bureau
+      if (selections) {
+        bureauLeads = bureauLeads.filter(l => selections![l.id]?.includes(bureau))
       }
 
       if (bureauLeads.length === 0) {
@@ -335,13 +347,15 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      // Create a batch for tracking
+      // Create a batch for tracking, store lead IDs for click-through
+      const batchLeadIds = bureauLeads.map(l => l.id)
       const batch = await prisma.prescreen_batches.create({
         data: {
           program_id: fillProgram.id,
           name: `Fill ${bureau.toUpperCase()} - ${new Date().toLocaleDateString()}`,
           status: 'processing',
           total_records: altairRecords.length,
+          lead_ids: batchLeadIds,
           submitted_by: auth.session.userId,
           submitted_by_email: auth.session.email,
           submitted_at: new Date(),
@@ -393,7 +407,9 @@ export async function POST(request: NextRequest) {
           ]
 
           const middleScore = computeMiddleScore(scores)
-          const tier = computeTier(middleScore)
+          const validScores = scores.filter((s): s is number => s != null)
+          const tierScore = middleScore ?? (validScores.length > 0 ? Math.max(...validScores) : null)
+          const tier = computeTier(tierScore)
 
           await prisma.prescreen_leads.update({
             where: { id: lead.id },
@@ -432,8 +448,8 @@ export async function POST(request: NextRequest) {
           failed++
         }
 
-        // Update batch status
-        const batchStatus = qualified > 0 ? 'completed' : 'failed'
+        // Update batch status — submission succeeded even if 0 qualified (no match ≠ failure)
+        const batchStatus = 'completed'
         await prisma.prescreen_batches.update({
           where: { id: batch.id },
           data: {

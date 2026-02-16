@@ -45,8 +45,8 @@ export async function POST(
 
     const decryptedValue = decrypt(encryptedValue)
 
-    // Audit log with IP
-    await prisma.prescreen_audit_log.create({
+    // Audit log — fire-and-forget (don't block the response)
+    prisma.prescreen_audit_log.create({
       data: {
         lead_id: leadId,
         action: field === 'ssn' ? 'decrypt_ssn' : 'decrypt_dob',
